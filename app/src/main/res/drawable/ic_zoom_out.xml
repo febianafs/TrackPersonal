@@ -1,0 +1,32 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:viewportWidth="1024"
+    android:viewportHeight="1024"
+    android:width="1024dp"
+    android:height="1024dp">
+
+    <!-- Sudut kiri atas -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M95.5 95L354.5 95L355 95.5L355 170L169 170L169 371L94 371L94 96.5L95.5 95Z" />
+
+    <!-- Sudut kanan atas -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M669 95L929 95L929 371L854.5 371L854 367.5L855 362.5L854 360.5Q856.8 358.8 855 352.5L855 350.5L854 348.5L854 170L669 170L669 95Z" />
+
+    <!-- Simbol MINUS (garis horizontal tengah) -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M327 477H697V547H327Z" />
+
+    <!-- Sudut kiri bawah -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M95.5 653L169 653L169 855L355 855L355 929L94 929L94 654.5L95.5 653Z" />
+
+    <!-- Sudut kanan bawah -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M855 653L929 653V929H669V855H854V653Z" />
+
+</vector>

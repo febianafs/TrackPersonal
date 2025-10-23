@@ -1,0 +1,4 @@
+<resources>
+    <!-- padding global biar konsisten -->
+    <dimen name="screen_padding">30dp</dimen>
+</resources>

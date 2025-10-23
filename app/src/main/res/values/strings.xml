@@ -1,0 +1,25 @@
+<resources>
+    <string name="app_name">Track Personal</string>
+
+    <!-- contentDescription -->
+    <string name="cd_logo">Logo</string>
+    <string name="cd_more">More options</string>
+    <string name="cd_avatar">Avatar</string>
+    <string name="cd_battery_icon">Battery icon</string>
+    <string name="osmdroid_base_path">osmdroid</string>
+
+
+    <!-- labels / placeholders -->
+    <string name="label_data_personel">Data Personel</string>
+    <string name="title_placeholder">KODAM JAYA</string>
+    <string name="label_nrp_placeholder">NRP : -</string>
+    <string name="label_name_placeholder">Name : -</string>
+    <string name="label_rank_placeholder">Rank : -</string>
+    <string name="label_unit_placeholder">Unit : -</string>
+    <string name="label_battalion_placeholder">Battalion : -</string>
+    <string name="label_squad_placeholder">Squad : -</string>
+    <string name="label_hr_placeholder">Heart Rate : -</string>
+    <string name="label_battery">Battery :</string>
+    <string name="value_dash">—</string>
+    <string name="coords_placeholder">LAT: -6.193125, LONG: 106.821810</string>
+</resources>

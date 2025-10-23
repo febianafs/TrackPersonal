@@ -1,0 +1,471 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/background"
+    android:fitsSystemWindows="true"
+    tools:context=".ui.main.MainActivity">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:background="@color/deep_blue"
+        android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:popupTheme="@style/ThemeOverlay.AppCompat.Light"
+        app:titleTextColor="@color/primary_cyan">
+
+        <ImageView
+            android:id="@+id/imgLogo"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_gravity="start|center_vertical"
+            android:layout_marginStart="12dp"
+            android:contentDescription="Logo"
+            android:src="@drawable/ic_logo_koopsus" />
+
+        <TextView
+            android:id="@+id/tvTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:padding="4dp"
+            android:singleLine="true"
+            android:text=""
+            android:textColor="@color/primary_cyan"
+            android:textStyle="bold" />
+
+        <ImageView
+            android:id="@+id/btnMenu"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end|center_vertical"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:contentDescription="Menu"
+            android:focusable="true"
+            android:padding="12dp"
+            android:src="@drawable/ic_menu_more" />
+    </com.google.android.material.appbar.MaterialToolbar>
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cardPersonel"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="8dp"
+        app:cardBackgroundColor="@color/deep_blue_900"
+        app:cardCornerRadius="14dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/toolbar"
+        app:strokeColor="@color/deep_blue_700"
+        app:strokeWidth="1dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="12dp">
+
+            <TextView
+                android:id="@+id/tvDataPersonel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+
+                android:paddingVertical="6dp"
+                android:text="Data Personel"
+                android:textAlignment="center"
+                android:textColor="@color/primary_cyan"
+                android:textStyle="bold"
+                app:autoSizeMaxTextSize="16sp"
+                app:autoSizeMinTextSize="12sp"
+                app:autoSizeStepGranularity="1sp"
+                app:autoSizeTextType="uniform"
+                tools:ignore="HardcodedText" />
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/personRow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingTop="8dp">
+
+                <ImageView
+                    android:id="@+id/imgPerson"
+                    android:layout_width="98dp"
+                    android:layout_height="98dp"
+                    android:background="@drawable/bg_avatar"
+                    android:contentDescription="Avatar"
+                    android:scaleType="centerCrop"
+                    android:src="@drawable/ic_soldier"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:id="@+id/infoGrid"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/imgPerson"
+                    app:layout_constraintTop_toTopOf="parent">
+
+                    <androidx.constraintlayout.widget.Guideline
+                        android:id="@+id/colGuide"
+                        android:layout_width="0dp"
+                        android:layout_height="0dp"
+                        android:orientation="vertical"
+                        app:layout_constraintGuide_percent="0.36" />
+
+                    <TextView
+                        android:id="@+id/tvNrpPersonel"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:includeFontPadding="false"
+                        android:lineSpacingMultiplier="0.95"
+                        android:maxLines="1"
+                        android:text="--"
+                        android:textColor="#D9D9D9"
+                        android:textSize="12sp"
+                        app:layout_constraintEnd_toStartOf="@id/colGuide"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        tools:ignore="HardcodedText" />
+
+                    <TextView
+                        android:id="@+id/tvNameLabel"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:includeFontPadding="false"
+                        android:lineSpacingMultiplier="0.95"
+                        android:text="Name"
+                        android:textColor="#D9D9D9"
+                        android:textSize="12sp"
+                        app:layout_constraintEnd_toStartOf="@id/colGuide"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toBottomOf="@id/tvNrpPersonel"
+                        tools:ignore="HardcodedText" />
+
+                    <TextView
+                        android:id="@+id/tvNamePersonel"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:includeFontPadding="false"
+                        android:lineSpacingMultiplier="0.95"
+                        android:maxLines="1"
+                        android:text="--"
+                        android:textColor="@android:color/white"
+                        android:textSize="12sp"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintStart_toStartOf="@id/colGuide"
+                        app:layout_constraintTop_toTopOf="@id/tvNameLabel"
+                        tools:ignore="HardcodedText" />
+
+                    <TextView
+                        android:id="@+id/tvRankLabel"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:includeFontPadding="false"
+                        android:lineSpacingMultiplier="0.95"
+                        android:text="Rank"
+                        android:textColor="#D9D9D9"
+                        android:textSize="12sp"
+                        app:layout_constraintEnd_toStartOf="@id/colGuide"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toBottomOf="@id/tvNameLabel"
+                        tools:ignore="HardcodedText" />
+
+                    <TextView
+                        android:id="@+id/tvRankPersonel"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:includeFontPadding="false"
+                        android:lineSpacingMultiplier="0.95"
+                        android:maxLines="1"
+                        android:text="--"
+                        android:textColor="@android:color/white"
+                        android:textSize="12sp"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintStart_toStartOf="@id/colGuide"
+                        app:layout_constraintTop_toTopOf="@id/tvRankLabel"
+                        tools:ignore="HardcodedText" />
+
+                    <TextView
+                        android:id="@+id/tvUnitLabel"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:includeFontPadding="false"
+                        android:lineSpacingMultiplier="0.95"
+                        android:text="Unit"
+                        android:textColor="#D9D9D9"
+                        android:textSize="12sp"
+                        app:layout_constraintEnd_toStartOf="@id/colGuide"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toBottomOf="@id/tvRankLabel"
+                        tools:ignore="HardcodedText" />
+
+                    <TextView
+                        android:id="@+id/tvUnitPersonel"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:includeFontPadding="false"
+                        android:lineSpacingMultiplier="0.95"
+                        android:maxLines="1"
+                        android:text="--"
+                        android:textColor="@android:color/white"
+                        android:textSize="12sp"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintStart_toStartOf="@id/colGuide"
+                        app:layout_constraintTop_toTopOf="@id/tvUnitLabel"
+                        tools:ignore="HardcodedText" />
+
+                    <TextView
+                        android:id="@+id/tvBattalionLabel"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:includeFontPadding="false"
+                        android:lineSpacingMultiplier="0.95"
+                        android:text="Battalion"
+                        android:textColor="#D9D9D9"
+                        android:textSize="12sp"
+                        app:layout_constraintEnd_toStartOf="@id/colGuide"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toBottomOf="@id/tvUnitLabel"
+                        tools:ignore="HardcodedText" />
+
+                    <TextView
+                        android:id="@+id/tvBattalionPersonel"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:includeFontPadding="false"
+                        android:lineSpacingMultiplier="0.95"
+                        android:maxLines="1"
+                        android:text="--"
+                        android:textColor="@android:color/white"
+                        android:textSize="12sp"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintStart_toStartOf="@id/colGuide"
+                        app:layout_constraintTop_toTopOf="@id/tvBattalionLabel"
+                        tools:ignore="HardcodedText" />
+
+                    <TextView
+                        android:id="@+id/tvSquadLabel"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:includeFontPadding="false"
+                        android:lineSpacingMultiplier="0.95"
+                        android:text="Squad"
+                        android:textColor="#D9D9D9"
+                        android:textSize="12sp"
+                        app:layout_constraintEnd_toStartOf="@id/colGuide"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toBottomOf="@id/tvBattalionLabel"
+                        tools:ignore="HardcodedText" />
+
+                    <TextView
+                        android:id="@+id/tvSquadPersonel"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:includeFontPadding="false"
+                        android:lineSpacingMultiplier="0.95"
+                        android:maxLines="1"
+                        android:text="--"
+                        android:textColor="@android:color/white"
+                        android:textSize="12sp"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintStart_toStartOf="@id/colGuide"
+                        app:layout_constraintTop_toTopOf="@id/tvSquadLabel"
+                        tools:ignore="HardcodedText" />
+
+                    <TextView
+                        android:id="@+id/tvHeartLabel"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:includeFontPadding="false"
+                        android:lineSpacingMultiplier="0.95"
+                        android:text="Heart Rate"
+                        android:textColor="#D9D9D9"
+                        android:textSize="12sp"
+                        app:layout_constraintEnd_toStartOf="@id/colGuide"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toBottomOf="@id/tvSquadLabel"
+                        tools:ignore="HardcodedText" />
+
+                    <TextView
+                        android:id="@+id/tvHeartPersonel"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:includeFontPadding="false"
+                        android:lineSpacingMultiplier="0.95"
+                        android:maxLines="1"
+                        android:text="-- bpm"
+                        android:textColor="@android:color/white"
+                        android:textSize="12sp"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintStart_toStartOf="@id/colGuide"
+                        app:layout_constraintTop_toTopOf="@id/tvHeartLabel"
+                        tools:ignore="HardcodedText" />
+
+                    <TextView
+                        android:id="@+id/tvBatteryLabel"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:includeFontPadding="false"
+                        android:lineSpacingMultiplier="0.95"
+                        android:text="Battery"
+                        android:textColor="#D9D9D9"
+                        android:textSize="12sp"
+                        app:layout_constraintEnd_toStartOf="@id/colGuide"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toBottomOf="@id/tvHeartLabel"
+                        tools:ignore="HardcodedText" />
+
+                    <LinearLayout
+                        android:id="@+id/batteryValueRow"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintStart_toStartOf="@id/colGuide"
+                        app:layout_constraintTop_toTopOf="@id/tvBatteryLabel">
+
+                        <ImageView
+                            android:id="@+id/imgBattery"
+                            android:layout_width="14dp"
+                            android:layout_height="14dp"
+                            android:layout_marginStart="1dp"
+                            android:layout_marginEnd="2dp"
+                            android:contentDescription="Battery icon"
+                            android:src="@drawable/ic_battery_full"
+                            app:tint="@android:color/holo_green_light" />
+
+                        <TextView
+                            android:id="@+id/tvBatteryPersonel"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:includeFontPadding="false"
+                            android:lineSpacingMultiplier="0.95"
+                            android:text="-- %"
+                            android:textColor="@android:color/white"
+                            android:textSize="12sp"
+                            tools:ignore="HardcodedText"
+                            tools:text="90%" />
+                    </LinearLayout>
+                </androidx.constraintlayout.widget.ConstraintLayout>
+            </androidx.constraintlayout.widget.ConstraintLayout>
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Map Section: margin horizontal 16dp, top 4dp -->
+    <FrameLayout
+        android:id="@+id/mapContainer"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="16dp"
+        android:minHeight="160dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHeight_default="percent"
+        app:layout_constraintHeight_percent="0.45"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/cardPersonel"
+        tools:layout_height="320dp">
+
+        <org.osmdroid.views.MapView
+            android:id="@+id/mapView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"/>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|end"
+            android:orientation="vertical"
+            android:layout_marginHorizontal="16dp"
+            android:layout_marginBottom="45dp">
+
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/fabZoomIn"
+                style="@style/App.SmallFab"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="0dp"
+                android:contentDescription="Zoom In"
+                app:srcCompat="@drawable/ic_zoom_in"
+                app:backgroundTint="@color/deep_blue"
+                app:tint="@android:color/white" />
+
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/fabZoomOut"
+                style="@style/App.SmallFab"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="0dp"
+                android:contentDescription="Zoom Out"
+                app:srcCompat="@drawable/ic_zoom_out"
+                app:backgroundTint="@color/deep_blue"
+                app:tint="@android:color/white" />
+
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/fabMyLocation"
+                style="@style/App.SmallFab"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="0dp"
+                android:contentDescription="My Location"
+                app:srcCompat="@drawable/ic_my_location"
+                app:backgroundTint="@color/deep_blue"
+                app:tint="@android:color/white" />
+
+        </LinearLayout>
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/coordCard"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|center_horizontal"
+            android:layout_marginBottom="16dp"
+            app:cardBackgroundColor="@color/deep_blue_900"
+            app:cardCornerRadius="16dp"
+            app:strokeColor="@color/deep_blue_700"
+            app:strokeWidth="1dp">
+
+            <TextView
+                android:id="@+id/tvCoordinates"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:paddingStart="12dp"
+                android:paddingTop="6dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="6dp"
+                android:text="Lat: — | Long: —"
+                android:textColor="@android:color/white"
+                android:textSize="12sp"
+                android:typeface="monospace" />
+        </com.google.android.material.card.MaterialCardView>
+    </FrameLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

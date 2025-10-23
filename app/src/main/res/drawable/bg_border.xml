@@ -1,0 +1,65 @@
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Soft glow -->
+    <item>
+        <shape>
+            <corners android:radius="12dp" />
+            <solid android:color="#1FFFFFFF" />
+            <padding android:left="1dp" android:top="1dp" android:right="1dp" android:bottom="1dp" />
+        </shape>
+    </item>
+
+    <!-- Inner gradient -->
+    <item android:left="1dp" android:top="1dp" android:right="1dp" android:bottom="1dp">
+        <shape>
+            <corners android:radius="12dp" />
+            <gradient
+                android:startColor="#1AFFFFFF"
+                android:centerColor="#0D90CAF9"
+                android:endColor="#0011182A"
+                android:angle="90" />
+            <stroke android:width="1dp" android:color="#33FFFFFF" />
+        </shape>
+    </item>
+
+    <!-- Corner L: TOP-LEFT -->
+    <item android:left="6dp" android:top="6dp">
+        <rotate
+            android:fromDegrees="0"
+            android:toDegrees="0"
+            android:pivotX="50%"
+            android:pivotY="50%"
+            android:drawable="@drawable/corner_tl" />
+    </item>
+
+    <!-- Corner L: TOP-RIGHT -->
+    <item android:right="6dp" android:top="6dp">
+        <rotate
+            android:fromDegrees="90"
+            android:toDegrees="90"
+            android:pivotX="50%"
+            android:pivotY="50%"
+            android:drawable="@drawable/corner_tl" />
+    </item>
+
+    <!-- Corner L: BOTTOM-RIGHT -->
+    <item android:right="6dp" android:bottom="6dp">
+        <rotate
+            android:fromDegrees="180"
+            android:toDegrees="180"
+            android:pivotX="50%"
+            android:pivotY="50%"
+            android:drawable="@drawable/corner_tl" />
+    </item>
+
+    <!-- Corner L: BOTTOM-LEFT -->
+    <item android:left="6dp" android:bottom="6dp">
+        <rotate
+            android:fromDegrees="270"
+            android:toDegrees="270"
+            android:pivotX="50%"
+            android:pivotY="50%"
+            android:drawable="@drawable/corner_tl" />
+    </item>
+
+</layer-list>
