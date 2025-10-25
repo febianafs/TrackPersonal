@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.example.trackpersonal.data.model.AboutData
+import java.util.UUID
 
 class SecurePref(context: Context) {
 
@@ -26,7 +27,11 @@ class SecurePref(context: Context) {
         private const val KEY_ROLE = "role"
         private const val KEY_AVATAR_URL = "avatar_url"
         private const val KEY_FULL_NAME = "full_name"
-        private const val KEY_PROFILE_ID = "profile_id" // opsional (id table profil)
+        private const val KEY_PROFILE_ID = "profile_id"
+        private const val KEY_NRP = "user_nrp"
+
+        // MQTT per-install instance (optional, kalau nanti mau dipakai)
+        private const val KEY_CLIENT_INSTANCE_ID = "client_instance_id"
 
         // Unit Info
         private const val KEY_SATUAN = "unit_satuan"
@@ -46,6 +51,10 @@ class SecurePref(context: Context) {
         private const val KEY_SETTING_TITLE = "setting_title"
         private const val KEY_SETTING_LOGO = "setting_logo"
         private const val KEY_SETTING_DESC = "setting_desc"
+
+        // Heart rate (Activity -> Service)
+        private const val KEY_HEART_BPM = "heart_bpm"
+        private const val KEY_HEART_TS  = "heart_ts"
     }
 
     private val sharedPref: SharedPreferences by lazy {
@@ -67,6 +76,7 @@ class SecurePref(context: Context) {
         sharedPref.edit().putString(key, value).apply()
     }
     private fun getString(key: String): String? = sharedPref.getString(key, null)
+
     private fun putLong(key: String, value: Long?) {
         sharedPref.edit().putLong(key, value ?: -1L).apply()
     }
@@ -103,6 +113,9 @@ class SecurePref(context: Context) {
     fun getClientId(): Long? = getLongOrNull(KEY_CLIENT_ID)
     fun getProfileId(): Long? = getLongOrNull(KEY_PROFILE_ID)
 
+    fun saveNrp(nrp: String?) = putString(KEY_NRP, nrp)
+    fun getNrp(): String? = getString(KEY_NRP)
+
     fun saveUserProfile(fullName: String?, username: String?, role: String?, avatarUrl: String?) {
         putString(KEY_FULL_NAME, fullName)
         putString(KEY_USERNAME, username)
@@ -113,6 +126,16 @@ class SecurePref(context: Context) {
     fun getUsername(): String? = getString(KEY_USERNAME)
     fun getRole(): String? = getString(KEY_ROLE)
     fun getAvatarUrl(): String? = getString(KEY_AVATAR_URL)
+
+    // ---------- MQTT CLIENT INSTANCE (optional) ----------
+    fun getOrCreateClientInstanceId(): String {
+        var v = getString(KEY_CLIENT_INSTANCE_ID)
+        if (v.isNullOrBlank()) {
+            v = UUID.randomUUID().toString()
+            putString(KEY_CLIENT_INSTANCE_ID, v)
+        }
+        return v
+    }
 
     // ---------- UNIT INFO ----------
     fun saveUnitInfo(satuan: String?, batalyon: String?, rank: String?, regu: String?) {
@@ -153,6 +176,18 @@ class SecurePref(context: Context) {
     fun getSettingTitle(): String? = getString(KEY_SETTING_TITLE)
     fun getSettingLogo(): String? = getString(KEY_SETTING_LOGO)
     fun getSettingDesc(): String? = getString(KEY_SETTING_DESC)
+
+    // ---------- HEART RATE (Activity → Service) ----------
+    fun saveHeartRate(bpm: Int?, tsSec: Long?) {
+        sharedPref.edit()
+            .putInt(KEY_HEART_BPM, bpm ?: 0)
+            .putLong(KEY_HEART_TS, tsSec ?: 0L)
+            .apply()
+    }
+    fun getHeartRateBpm(): Int? =
+        if (sharedPref.contains(KEY_HEART_BPM)) sharedPref.getInt(KEY_HEART_BPM, 0) else null
+    fun getHeartRateTs(): Long? =
+        if (sharedPref.contains(KEY_HEART_TS)) sharedPref.getLong(KEY_HEART_TS, 0L) else null
 
     // ---------- CLEAR ALL ----------
     fun clear() {
