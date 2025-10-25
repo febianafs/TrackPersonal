@@ -1,18 +1,17 @@
 package com.example.trackpersonal.mqtt
 
-import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.Service
-import android.content.Context
-import android.content.Intent
-import android.os.Build
-import android.os.IBinder
+import android.app.*
+import android.content.*
+import android.location.Location
+import android.net.*
+import android.net.wifi.WifiManager
+import android.os.*
+import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.example.trackpersonal.R
 import com.example.trackpersonal.utils.SecurePref
-import com.google.gson.Gson
-import com.hivemq.client.mqtt.datatypes.MqttQos
+import com.google.android.gms.location.*
 import kotlinx.coroutines.*
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -20,11 +19,11 @@ class MqttService : Service() {
 
     companion object {
         private const val CHANNEL_ID = "mqtt_tracking"
-        private const val NOTIF_ID = 1001
+        private const val NOTIF_ID = 2001
 
         private const val ACTION_START = "MQTT_START"
-        private const val ACTION_STOP = "MQTT_STOP"
-        private const val ACTION_SOS = "MQTT_SOS"
+        private const val ACTION_STOP  = "MQTT_STOP"
+        private const val ACTION_SOS   = "MQTT_SOS"
         private const val EXTRA_SOS_ACTIVE = "sos_active"
 
         fun start(context: Context) {
@@ -46,19 +45,51 @@ class MqttService : Service() {
     }
 
     private lateinit var pref: SecurePref
-    private lateinit var mqtt: MqttEngine
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private lateinit var fused: FusedLocationProviderClient
+    private val mqtt: MqttHelper by lazy { MqttHelper(this) { /* optional */ } }
 
+    // lokasi terakhir
+    private var lastKnown: Location? = null
+
+    // HR + Battery realtime
+    private var latestHeartRate: Int = 0
+    private var latestHeartTs: Long = 0
+    private var latestBatteryPercent: Int = 0
+
+    // loop 10 detik
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val running = AtomicBoolean(false)
-    private var dataJob: Job? = null
+    private var tickerJob: Job? = null
+    private val PERIOD_MS = 10_000L
+
+    // network callback
+    private var netCallback: ConnectivityManager.NetworkCallback? = null
+
+    // === WiFiLock agar Wi-Fi tidak tidur saat layar mati ===
+    private var wifiLock: WifiManager.WifiLock? = null
+
+    // battery receiver (sticky)
+    private val batteryReceiver = object : BroadcastReceiver() {
+        override fun onReceive(ctx: Context?, intent: Intent?) {
+            if (intent == null) return
+            val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+            val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, 100)
+            if (level >= 0 && scale > 0) {
+                latestBatteryPercent = (level * 100) / scale
+            }
+        }
+    }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_START -> ensureStarted()
-            ACTION_STOP -> stopSelf()
+            ACTION_STOP -> {
+                stopSelf()
+                return START_NOT_STICKY
+            }
             ACTION_SOS -> {
                 val active = intent.getBooleanExtra(EXTRA_SOS_ACTIVE, false)
                 scope.launch { publishSos(active) }
+                return START_STICKY
             }
             else -> ensureStarted()
         }
@@ -67,69 +98,190 @@ class MqttService : Service() {
 
     private fun ensureStarted() {
         if (running.get()) return
+        running.set(true)
 
         pref = SecurePref(this)
         createNotifChannel()
         startForeground(NOTIF_ID, buildNotif("Connecting…"))
 
-        val userId = pref.getUserId()?.toString() ?: "u-unknown"
-        val androidId = pref.getAndroidId().orEmpty()
-        val clientId = "android-$userId-$androidId".take(22)
+        // Ambil WiFiLock → cegah Wi-Fi tidur saat screen off
+        acquireWifiLock()
 
-        mqtt = MqttEngine(
-            host = "147.139.161.159",
-            portWs = 9001,
-            username = "kodam",
-            password = "kodam2025",
-            clientId = clientId
-        )
+        // battery realtime
+        registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
 
-        val lwtTopic = "radio/status/$userId"
-        val lwtOffline = Gson().toJson(mapOf("online" to 0, "ts" to (System.currentTimeMillis() / 1000)))
-        val onlineMsg = Gson().toJson(mapOf("online" to 1, "ts" to (System.currentTimeMillis() / 1000)))
+        fused = LocationServices.getFusedLocationProviderClient(this)
+        startLocationUpdates()
 
-        mqtt.connectWithLwt(lwtTopic, lwtOffline)
-            .whenComplete { _, _ ->
-                mqtt.client.publishWith()
-                    .topic(lwtTopic)
-                    .qos(MqttQos.AT_LEAST_ONCE)
-                    .retain(true)
-                    .payload(onlineMsg.toByteArray())
-                    .send()
-                updateNotif("Connected")
-                startDataLoop()
-            }
+        registerNetworkCallback()
+        mqtt.connect() // soft ensure
+
+        startTicker()
     }
 
-    private fun startDataLoop() {
-        if (running.getAndSet(true)) return
-        dataJob = scope.launch {
-            val publisher = RadioPublisher(this@MqttService, pref, mqtt.client)
-            while (isActive && running.get()) {
-                try { publisher.publishRadioDataIfNeeded() } catch (_: Exception) {}
-                delay(10_000L)
+    private fun acquireWifiLock() {
+        try {
+            val wifi = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
+            val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                WifiManager.WIFI_MODE_FULL_LOW_LATENCY
+            } else {
+                @Suppress("DEPRECATION")
+                WifiManager.WIFI_MODE_FULL_HIGH_PERF
+            }
+            wifiLock = wifi.createWifiLock(mode, "mqtt-wifi-lock").apply {
+                setReferenceCounted(false)
+                acquire()
+            }
+        } catch (_: Exception) { /* ignore */ }
+    }
+
+    private fun releaseWifiLock() {
+        try { if (wifiLock?.isHeld == true) wifiLock?.release() } catch (_: Exception) {}
+        wifiLock = null
+    }
+
+    private fun startTicker() {
+        if (tickerJob?.isActive == true) return
+        tickerJob = scope.launch {
+            while (isActive) {
+                try { mqtt.connect() } catch (_: Exception) {} // debounced di helper
+                refreshLatestHeartFromPref()
+                sendRadioDataOnce()
+                delay(PERIOD_MS)
             }
         }
     }
 
+    private fun stopTicker() {
+        tickerJob?.cancel()
+        tickerJob = null
+    }
+
     private suspend fun publishSos(active: Boolean) {
-        val publisher = RadioPublisher(this@MqttService, pref, mqtt.client)
-        publisher.publishSos(active) // QoS 2 + retained
+        val id = pref.getUserId()?.toString() ?: "unknown"
+        val name = pref.getFullName() ?: pref.getName() ?: "Unknown"
+        val avatar = pref.getAvatarUrl() ?: ""
+
+        val loc = lastKnown ?: Location("placeholder").apply {
+            latitude = 0.0
+            longitude = 0.0
+            time = System.currentTimeMillis()
+        }
+        val ts = System.currentTimeMillis() / 1000L
+
+        mqtt.publishSOS(
+            id = id,
+            name = name,
+            avatar = avatar,
+            sos = if (active) 1 else 0,
+            lat = loc.latitude,
+            lng = loc.longitude,
+            timestamp = ts
+        )
+        updateNotif(if (active) "SOS ON • sending…" else "SOS OFF • sending…")
     }
 
-    private fun updateNotif(text: String) {
-        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        nm.notify(NOTIF_ID, buildNotif(text))
+    private fun sendRadioDataOnce() {
+        val loc = lastKnown ?: run {
+            Log.w("MQTT-HiveMQ", "⚠️ lastKnown null → kirim (0,0). Cek izin background/precise & GPS.")
+            Location("placeholder").apply {
+                latitude = 0.0
+                longitude = 0.0
+                time = System.currentTimeMillis()
+            }
+        }
+
+        val id = pref.getUserId()?.toString() ?: "unknown"
+        val nrp = pref.getNrp() ?: ""
+        val name = pref.getFullName() ?: pref.getName() ?: "Unknown"
+        val rank = pref.getRank() ?: ""
+        val unit = pref.getSatuan() ?: ""
+        val battalion = pref.getBatalyon() ?: ""
+        val squad = pref.getRegu() ?: ""
+        val avatar = pref.getAvatarUrl() ?: ""
+        val ts = System.currentTimeMillis() / 1000L
+
+        mqtt.publishData(
+            id = id,
+            nrp = nrp,
+            name = name,
+            rank = rank,
+            unit = unit,
+            battalion = battalion,
+            squad = squad,
+            avatar = avatar,
+            latitude = loc.latitude,
+            longitude = loc.longitude,
+            gpsTimestamp = ts,
+            heartrate = latestHeartRate,
+            heartrateTimestamp = latestHeartTs,
+            batteryLevel = latestBatteryPercent,
+            timestamp = ts
+        )
+        updateNotif("Sending every 10s…")
     }
 
+    // ===== lokasi background =====
+    private fun startLocationUpdates() {
+        val fine = ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) ==
+                android.content.pm.PackageManager.PERMISSION_GRANTED
+        val coarse = ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) ==
+                android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (!fine && !coarse) return
+
+        val req = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5_000L)
+            .setMinUpdateIntervalMillis(2_000L)
+            .setMinUpdateDistanceMeters(0f)
+            .setWaitForAccurateLocation(true)
+            .build()
+
+        fused.requestLocationUpdates(req, locationCallback, mainLooper)
+        fused.lastLocation.addOnSuccessListener { loc -> loc?.let { lastKnown = it } }
+    }
+
+    private val locationCallback = object : LocationCallback() {
+        override fun onLocationResult(result: LocationResult) {
+            result.lastLocation?.let { lastKnown = it }
+        }
+    }
+
+    // ===== pantau jaringan =====
+    private fun registerNetworkCallback() {
+        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val req = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .build()
+        netCallback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                try { mqtt.connect() } catch (_: Exception) {}
+            }
+            override fun onLost(network: Network) {
+                updateNotif("Network lost… retrying")
+            }
+        }
+        cm.registerNetworkCallback(req, netCallback!!)
+    }
+
+    private fun unregisterNetworkCallback() {
+        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        try { netCallback?.let { cm.unregisterNetworkCallback(it) } } catch (_: Exception) {}
+        netCallback = null
+    }
+
+    // ===== Notif =====
     private fun buildNotif(text: String): Notification {
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_logo_koopsus) // pastikan drawable ini ada
+            .setSmallIcon(R.drawable.ic_logo_kodamjaya)
             .setContentTitle("Radio Tracking")
             .setContentText(text)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
+    }
+
+    private fun updateNotif(text: String) {
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        nm.notify(NOTIF_ID, buildNotif(text))
     }
 
     private fun createNotifChannel() {
@@ -140,10 +292,36 @@ class MqttService : Service() {
         }
     }
 
+    private fun refreshLatestHeartFromPref() {
+        pref.getHeartRateBpm()?.let { latestHeartRate = it }
+        pref.getHeartRateTs()?.let { latestHeartTs = it }
+    }
+
+    // === Self-heal kalau task di-swipe dari recent apps / proses di-kill ringan ===
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        val i = Intent(applicationContext, MqttService::class.java).setAction(ACTION_START)
+        val pi = PendingIntent.getService(
+            applicationContext, 1001, i,
+            PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val am = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        am.setExactAndAllowWhileIdle(
+            AlarmManager.RTC_WAKEUP,
+            System.currentTimeMillis() + 1000,
+            pi
+        )
+    }
+
     override fun onDestroy() {
-        running.set(false)
-        dataJob?.cancel()
+        try { unregisterReceiver(batteryReceiver) } catch (_: Exception) {}
+        try { fused.removeLocationUpdates(locationCallback) } catch (_: Exception) {}
+        unregisterNetworkCallback()
+        stopTicker()
+        releaseWifiLock()
+        try { mqtt.disconnect() } catch (_: Exception) {}
         scope.cancel()
+        running.set(false)
         super.onDestroy()
     }
 

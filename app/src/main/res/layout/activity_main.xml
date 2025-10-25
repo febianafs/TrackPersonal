@@ -28,7 +28,7 @@
             android:layout_gravity="start|center_vertical"
             android:layout_marginStart="12dp"
             android:contentDescription="Logo"
-            android:src="@drawable/ic_logo_koopsus" />
+            android:src="@drawable/ic_logo_kodamjaya" />
 
         <TextView
             android:id="@+id/tvTitle"
@@ -68,33 +68,165 @@
         app:strokeColor="@color/deep_blue_700"
         app:strokeWidth="1dp">
 
-        <LinearLayout
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/cardContent"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
             android:padding="12dp">
 
-            <TextView
-                android:id="@+id/tvDataPersonel"
-                android:layout_width="match_parent"
+            <!-- ===== TITLE BOX: Letter L tebal + garis horizontal & vertikal halus ===== -->
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/titleBox"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:paddingHorizontal="18dp"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent">
 
-                android:paddingVertical="6dp"
-                android:text="Data Personel"
-                android:textAlignment="center"
-                android:textColor="@color/primary_cyan"
-                android:textStyle="bold"
-                app:autoSizeMaxTextSize="16sp"
-                app:autoSizeMinTextSize="12sp"
-                app:autoSizeStepGranularity="1sp"
-                app:autoSizeTextType="uniform"
-                tools:ignore="HardcodedText" />
+                <!-- Judul -->
+                <TextView
+                    android:id="@+id/tvDataPersonel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingVertical="6dp"
+                    android:text="Data Personel"
+                    android:textColor="@color/primary_cyan"
+                    android:textStyle="bold"
+                    app:autoSizeMaxTextSize="16sp"
+                    app:autoSizeMinTextSize="12sp"
+                    app:autoSizeStepGranularity="1sp"
+                    app:autoSizeTextType="uniform"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    tools:ignore="HardcodedText" />
 
+                <!-- Letter L: 14dp panjang, 3dp tebal -->
+                <!-- TOP-LEFT -->
+                <View
+                    android:id="@+id/corner_tl_h"
+                    android:layout_width="14dp"
+                    android:layout_height="3dp"
+                    android:background="@android:color/white"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"/>
+                <View
+                    android:id="@+id/corner_tl_v"
+                    android:layout_width="3dp"
+                    android:layout_height="14dp"
+                    android:background="@android:color/white"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"/>
+
+                <!-- TOP-RIGHT -->
+                <View
+                    android:id="@+id/corner_tr_h"
+                    android:layout_width="14dp"
+                    android:layout_height="3dp"
+                    android:background="@android:color/white"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"/>
+                <View
+                    android:id="@+id/corner_tr_v"
+                    android:layout_width="3dp"
+                    android:layout_height="14dp"
+                    android:background="@android:color/white"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"/>
+
+                <!-- BOTTOM-LEFT -->
+                <View
+                    android:id="@+id/corner_bl_h"
+                    android:layout_width="14dp"
+                    android:layout_height="3dp"
+                    android:background="@android:color/white"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent"/>
+                <View
+                    android:id="@+id/corner_bl_v"
+                    android:layout_width="3dp"
+                    android:layout_height="14dp"
+                    android:background="@android:color/white"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent"/>
+
+                <!-- BOTTOM-RIGHT -->
+                <View
+                    android:id="@+id/corner_br_h"
+                    android:layout_width="14dp"
+                    android:layout_height="3dp"
+                    android:background="@android:color/white"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent"/>
+                <View
+                    android:id="@+id/corner_br_v"
+                    android:layout_width="3dp"
+                    android:layout_height="14dp"
+                    android:background="@android:color/white"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent"/>
+
+                <!-- Garis horizontal ATAS/BAWAH: tidak menyentuh L (gap 4dp dari 14dp) -->
+                <View
+                    android:id="@+id/title_top_line"
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:background="@android:color/white"
+                    android:layout_marginStart="18dp"
+                    android:layout_marginEnd="18dp"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
+                <View
+                    android:id="@+id/title_bottom_line"
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:background="@android:color/white"
+                    android:layout_marginStart="18dp"
+                    android:layout_marginEnd="18dp"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent" />
+
+                <!-- Garis vertikal KIRI/ KANAN: dekat L, tapi ujungnya tidak menyentuh L -->
+                <View
+                    android:id="@+id/title_left_line"
+                    android:layout_width="1dp"
+                    android:layout_height="6dp"
+                    android:layout_marginTop="18dp"
+                    android:layout_marginBottom="18dp"
+                    android:background="@android:color/white"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintVertical_bias="0.0" />
+
+                <View
+                    android:id="@+id/title_right_line"
+                    android:layout_width="1dp"
+                    android:layout_height="6dp"
+                    android:layout_marginTop="18dp"
+                    android:layout_marginBottom="18dp"
+                    android:background="@android:color/white"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
+            <!-- ===== END TITLE BOX ===== -->
+
+            <!-- Konten utama -->
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/personRow"
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:paddingTop="8dp">
+                android:paddingTop="8dp"
+                app:layout_constraintTop_toBottomOf="@id/titleBox"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent">
 
                 <ImageView
                     android:id="@+id/imgPerson"
@@ -125,6 +257,20 @@
                         app:layout_constraintGuide_percent="0.36" />
 
                     <TextView
+                        android:id="@+id/tvNrpLabel"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:includeFontPadding="false"
+                        android:lineSpacingMultiplier="0.95"
+                        android:text="NRP"
+                        android:textColor="#D9D9D9"
+                        android:textSize="12sp"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintEnd_toStartOf="@id/colGuide"
+                        app:layout_constraintTop_toTopOf="parent"
+                        tools:ignore="HardcodedText" />
+
+                    <TextView
                         android:id="@+id/tvNrpPersonel"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
@@ -132,11 +278,11 @@
                         android:lineSpacingMultiplier="0.95"
                         android:maxLines="1"
                         android:text="--"
-                        android:textColor="#D9D9D9"
+                        android:textColor="@android:color/white"
                         android:textSize="12sp"
-                        app:layout_constraintEnd_toStartOf="@id/colGuide"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintStart_toStartOf="@id/colGuide"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintTop_toTopOf="@id/tvNrpLabel"
                         tools:ignore="HardcodedText" />
 
                     <TextView
@@ -151,7 +297,7 @@
                         android:textSize="12sp"
                         app:layout_constraintEnd_toStartOf="@id/colGuide"
                         app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toBottomOf="@id/tvNrpPersonel"
+                        app:layout_constraintTop_toBottomOf="@id/tvNrpLabel"
                         tools:ignore="HardcodedText" />
 
                     <TextView
@@ -293,90 +439,12 @@
                         app:layout_constraintStart_toStartOf="@id/colGuide"
                         app:layout_constraintTop_toTopOf="@id/tvSquadLabel"
                         tools:ignore="HardcodedText" />
-
-                    <TextView
-                        android:id="@+id/tvHeartLabel"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:includeFontPadding="false"
-                        android:lineSpacingMultiplier="0.95"
-                        android:text="Heart Rate"
-                        android:textColor="#D9D9D9"
-                        android:textSize="12sp"
-                        app:layout_constraintEnd_toStartOf="@id/colGuide"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toBottomOf="@id/tvSquadLabel"
-                        tools:ignore="HardcodedText" />
-
-                    <TextView
-                        android:id="@+id/tvHeartPersonel"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:ellipsize="end"
-                        android:includeFontPadding="false"
-                        android:lineSpacingMultiplier="0.95"
-                        android:maxLines="1"
-                        android:text="-- bpm"
-                        android:textColor="@android:color/white"
-                        android:textSize="12sp"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        app:layout_constraintStart_toStartOf="@id/colGuide"
-                        app:layout_constraintTop_toTopOf="@id/tvHeartLabel"
-                        tools:ignore="HardcodedText" />
-
-                    <TextView
-                        android:id="@+id/tvBatteryLabel"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:includeFontPadding="false"
-                        android:lineSpacingMultiplier="0.95"
-                        android:text="Battery"
-                        android:textColor="#D9D9D9"
-                        android:textSize="12sp"
-                        app:layout_constraintEnd_toStartOf="@id/colGuide"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toBottomOf="@id/tvHeartLabel"
-                        tools:ignore="HardcodedText" />
-
-                    <LinearLayout
-                        android:id="@+id/batteryValueRow"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        app:layout_constraintStart_toStartOf="@id/colGuide"
-                        app:layout_constraintTop_toTopOf="@id/tvBatteryLabel">
-
-                        <ImageView
-                            android:id="@+id/imgBattery"
-                            android:layout_width="14dp"
-                            android:layout_height="14dp"
-                            android:layout_marginStart="1dp"
-                            android:layout_marginEnd="2dp"
-                            android:contentDescription="Battery icon"
-                            android:src="@drawable/ic_battery_full"
-                            app:tint="@android:color/holo_green_light" />
-
-                        <TextView
-                            android:id="@+id/tvBatteryPersonel"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:includeFontPadding="false"
-                            android:lineSpacingMultiplier="0.95"
-                            android:text="-- %"
-                            android:textColor="@android:color/white"
-                            android:textSize="12sp"
-                            tools:ignore="HardcodedText"
-                            tools:text="90%" />
-                    </LinearLayout>
                 </androidx.constraintlayout.widget.ConstraintLayout>
             </androidx.constraintlayout.widget.ConstraintLayout>
-        </LinearLayout>
+        </androidx.constraintlayout.widget.ConstraintLayout>
     </com.google.android.material.card.MaterialCardView>
 
-    <!-- Map Section: margin horizontal 16dp, top 4dp -->
+    <!-- Map Section with floating info -->
     <FrameLayout
         android:id="@+id/mapContainer"
         android:layout_width="0dp"
@@ -396,9 +464,75 @@
         <org.osmdroid.views.MapView
             android:id="@+id/mapView"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"/>
+            android:layout_height="match_parent" />
 
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/heartCard"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|start"
+            android:layout_margin="16dp"
+            app:cardBackgroundColor="@color/deep_blue_900"
+            app:cardCornerRadius="16dp"
+            app:strokeColor="@color/deep_blue_700"
+            app:strokeWidth="1dp">
+            <TextView
+                android:id="@+id/tvHeartPersonel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:paddingStart="12dp"
+                android:paddingTop="6dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="6dp"
+                android:text="-- bpm"
+                android:textColor="@android:color/white"
+                android:textSize="12sp" />
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/batteryCard"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|end"
+            android:layout_margin="16dp"
+            app:cardBackgroundColor="@color/deep_blue_900"
+            app:cardCornerRadius="16dp"
+            app:strokeColor="@color/deep_blue_700"
+            app:strokeWidth="1dp">
+            <LinearLayout
+                android:id="@+id/batteryValueRow"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingStart="12dp"
+                android:paddingTop="6dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="6dp">
+                <ImageView
+                    android:id="@+id/imgBattery"
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:layout_marginEnd="2dp"
+                    android:contentDescription="Battery icon"
+                    android:src="@drawable/ic_battery_full"
+                    app:tint="@android:color/holo_green_light" />
+                <TextView
+                    android:id="@+id/tvBatteryPersonel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:includeFontPadding="false"
+                    android:lineSpacingMultiplier="0.95"
+                    android:text="-- %"
+                    android:textColor="@android:color/white"
+                    android:textSize="12sp"
+                    tools:text="90%" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- FLOATING FABs: Zoom In, Zoom Out, My Location -->
         <LinearLayout
+            android:id="@+id/mapFabs"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom|end"
@@ -438,7 +572,6 @@
                 app:srcCompat="@drawable/ic_my_location"
                 app:backgroundTint="@color/deep_blue"
                 app:tint="@android:color/white" />
-
         </LinearLayout>
 
         <com.google.android.material.card.MaterialCardView
@@ -451,7 +584,6 @@
             app:cardCornerRadius="16dp"
             app:strokeColor="@color/deep_blue_700"
             app:strokeWidth="1dp">
-
             <TextView
                 android:id="@+id/tvCoordinates"
                 android:layout_width="wrap_content"
@@ -467,5 +599,4 @@
                 android:typeface="monospace" />
         </com.google.android.material.card.MaterialCardView>
     </FrameLayout>
-
 </androidx.constraintlayout.widget.ConstraintLayout>

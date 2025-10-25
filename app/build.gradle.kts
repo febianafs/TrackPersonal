@@ -79,4 +79,11 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
     // Glide (untuk load logo & avatar)
     implementation("com.github.bumptech.glide:glide:4.16.0")
+    // --- Netty BOM: kunci versi semua modul Netty biar konsisten ---
+    implementation(platform("io.netty:netty-bom:4.1.111.Final"))
+    // --- Modul yang dibutuhin WebSocket HiveMQ (HTTP + handler) ---
+    implementation("io.netty:netty-codec-http")
+    implementation("io.netty:netty-handler")
+    // WorkManager
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
 }
