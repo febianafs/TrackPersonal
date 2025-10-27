@@ -50,6 +50,7 @@ import android.content.Context
 import android.os.PowerManager
 import android.provider.Settings
 import android.net.Uri
+import com.example.trackpersonal.ui.setting.SettingActivity
 import org.osmdroid.views.CustomZoomButtonsController
 import java.util.Locale
 
@@ -278,6 +279,14 @@ class MainActivity : AppCompatActivity() {
             when (item.itemId) {
                 R.id.action_about -> {
                     startActivity(Intent(this, AboutActivity::class.java)); true
+                }
+                R.id.action_cam -> {
+                    startActivity(Intent(this, com.example.trackpersonal.ui.bodycam.BodyCamActivity::class.java))
+                    true
+                }
+                R.id.action_setting -> {
+                    startActivity(Intent(this, SettingActivity::class.java))
+                    true
                 }
                 R.id.action_logout -> { performLogout(); true }
                 else -> false

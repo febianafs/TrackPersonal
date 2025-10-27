@@ -5,8 +5,8 @@
     android:id="@+id/root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/background"
     android:fitsSystemWindows="true"
+    style="@style/ScreenBackground"
     tools:context=".ui.main.MainActivity">
 
     <com.google.android.material.appbar.MaterialToolbar
@@ -72,7 +72,8 @@
             android:id="@+id/cardContent"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:padding="12dp">
+            android:padding="12dp"
+            style="@style/CardBackground">
 
             <!-- ===== TITLE BOX: Letter L tebal + garis horizontal & vertikal halus ===== -->
             <androidx.constraintlayout.widget.ConstraintLayout
@@ -93,7 +94,7 @@
                     android:layout_height="wrap_content"
                     android:paddingVertical="6dp"
                     android:text="Data Personel"
-                    android:textColor="@color/primary_cyan"
+                    android:textColor="@color/white"
                     android:textStyle="bold"
                     app:autoSizeMaxTextSize="16sp"
                     app:autoSizeMinTextSize="12sp"
@@ -263,7 +264,7 @@
                         android:includeFontPadding="false"
                         android:lineSpacingMultiplier="0.95"
                         android:text="NRP"
-                        android:textColor="#D9D9D9"
+                        android:textColor="@color/white"
                         android:textSize="12sp"
                         app:layout_constraintStart_toStartOf="parent"
                         app:layout_constraintEnd_toStartOf="@id/colGuide"
@@ -278,7 +279,7 @@
                         android:lineSpacingMultiplier="0.95"
                         android:maxLines="1"
                         android:text="--"
-                        android:textColor="@android:color/white"
+                        android:textColor="@color/white"
                         android:textSize="12sp"
                         app:layout_constraintStart_toStartOf="@id/colGuide"
                         app:layout_constraintEnd_toEndOf="parent"
@@ -293,7 +294,7 @@
                         android:includeFontPadding="false"
                         android:lineSpacingMultiplier="0.95"
                         android:text="Name"
-                        android:textColor="#D9D9D9"
+                        android:textColor="@color/white"
                         android:textSize="12sp"
                         app:layout_constraintEnd_toStartOf="@id/colGuide"
                         app:layout_constraintStart_toStartOf="parent"
@@ -309,7 +310,7 @@
                         android:lineSpacingMultiplier="0.95"
                         android:maxLines="1"
                         android:text="--"
-                        android:textColor="@android:color/white"
+                        android:textColor="@color/white"
                         android:textSize="12sp"
                         app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintStart_toStartOf="@id/colGuide"
@@ -324,7 +325,7 @@
                         android:includeFontPadding="false"
                         android:lineSpacingMultiplier="0.95"
                         android:text="Rank"
-                        android:textColor="#D9D9D9"
+                        android:textColor="@color/white"
                         android:textSize="12sp"
                         app:layout_constraintEnd_toStartOf="@id/colGuide"
                         app:layout_constraintStart_toStartOf="parent"
@@ -340,7 +341,7 @@
                         android:lineSpacingMultiplier="0.95"
                         android:maxLines="1"
                         android:text="--"
-                        android:textColor="@android:color/white"
+                        android:textColor="@color/white"
                         android:textSize="12sp"
                         app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintStart_toStartOf="@id/colGuide"
@@ -355,7 +356,7 @@
                         android:includeFontPadding="false"
                         android:lineSpacingMultiplier="0.95"
                         android:text="Unit"
-                        android:textColor="#D9D9D9"
+                        android:textColor="@color/white"
                         android:textSize="12sp"
                         app:layout_constraintEnd_toStartOf="@id/colGuide"
                         app:layout_constraintStart_toStartOf="parent"
@@ -371,7 +372,7 @@
                         android:lineSpacingMultiplier="0.95"
                         android:maxLines="1"
                         android:text="--"
-                        android:textColor="@android:color/white"
+                        android:textColor="@color/white"
                         android:textSize="12sp"
                         app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintStart_toStartOf="@id/colGuide"
@@ -386,7 +387,7 @@
                         android:includeFontPadding="false"
                         android:lineSpacingMultiplier="0.95"
                         android:text="Battalion"
-                        android:textColor="#D9D9D9"
+                        android:textColor="@color/white"
                         android:textSize="12sp"
                         app:layout_constraintEnd_toStartOf="@id/colGuide"
                         app:layout_constraintStart_toStartOf="parent"
@@ -402,7 +403,7 @@
                         android:lineSpacingMultiplier="0.95"
                         android:maxLines="1"
                         android:text="--"
-                        android:textColor="@android:color/white"
+                        android:textColor="@color/white"
                         android:textSize="12sp"
                         app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintStart_toStartOf="@id/colGuide"
@@ -417,7 +418,7 @@
                         android:includeFontPadding="false"
                         android:lineSpacingMultiplier="0.95"
                         android:text="Squad"
-                        android:textColor="#D9D9D9"
+                        android:textColor="@color/white"
                         android:textSize="12sp"
                         app:layout_constraintEnd_toStartOf="@id/colGuide"
                         app:layout_constraintStart_toStartOf="parent"
@@ -433,7 +434,7 @@
                         android:lineSpacingMultiplier="0.95"
                         android:maxLines="1"
                         android:text="--"
-                        android:textColor="@android:color/white"
+                        android:textColor="@color/white"
                         android:textSize="12sp"
                         app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintStart_toStartOf="@id/colGuide"
@@ -486,7 +487,7 @@
                 android:paddingEnd="12dp"
                 android:paddingBottom="6dp"
                 android:text="-- bpm"
-                android:textColor="@android:color/white"
+                android:textColor="@color/white"
                 android:textSize="12sp" />
         </com.google.android.material.card.MaterialCardView>
 
@@ -524,7 +525,7 @@
                     android:includeFontPadding="false"
                     android:lineSpacingMultiplier="0.95"
                     android:text="-- %"
-                    android:textColor="@android:color/white"
+                    android:textColor="@color/white"
                     android:textSize="12sp"
                     tools:text="90%" />
             </LinearLayout>
@@ -593,8 +594,8 @@
                 android:paddingTop="6dp"
                 android:paddingEnd="12dp"
                 android:paddingBottom="6dp"
-                android:text="Lat: — | Long: —"
-                android:textColor="@android:color/white"
+                android:textColor="@color/white"
+                style="@style/TextColor"
                 android:textSize="12sp"
                 android:typeface="monospace" />
         </com.google.android.material.card.MaterialCardView>

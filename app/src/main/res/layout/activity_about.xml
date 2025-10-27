@@ -5,8 +5,8 @@
     android:id="@+id/about"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/deep_blue_900"
-    android:fitsSystemWindows="true">
+    android:fitsSystemWindows="true"
+    style="@style/ScreenBackground">
 
     <!-- Toolbar dalam AppBarLayout agar NestedScrollView menghormati tinggi toolbar -->
     <com.google.android.material.appbar.AppBarLayout
@@ -73,7 +73,7 @@
                 android:layout_marginTop="1dp"
                 android:lineSpacingExtra="2dp"
                 android:text="—"
-                android:textColor="#D9D9D9"
+                style="@style/TextColor"
                 android:textSize="14sp"/>
 
             <!-- Grid info (guideline 36%) -->
@@ -95,7 +95,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:text="Developer"
-                    android:textColor="#D9D9D9"
+                    style="@style/TextColor"
                     android:textSize="14sp"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintEnd_toStartOf="@id/guideline36"
@@ -106,7 +106,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:text="--"
-                    android:textColor="@android:color/white"
+                    style="@style/TextColor"
                     android:textSize="14sp"
                     app:layout_constraintStart_toStartOf="@id/guideline36"
                     app:layout_constraintEnd_toEndOf="parent"
@@ -118,7 +118,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:text="Version"
-                    android:textColor="#D9D9D9"
+                    style="@style/TextColor"
                     android:textSize="14sp"
                     android:layout_marginTop="8dp"
                     app:layout_constraintStart_toStartOf="parent"
@@ -130,7 +130,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:text="--"
-                    android:textColor="@android:color/white"
+                    style="@style/TextColor"
                     android:textSize="14sp"
                     app:layout_constraintStart_toStartOf="@id/guideline36"
                     app:layout_constraintEnd_toEndOf="parent"
@@ -156,7 +156,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
                 android:text="Copyright © 2025"
-                android:textColor="@android:color/white"
+                style="@style/TextColor"
                 android:textSize="14sp"/>
 
             <View

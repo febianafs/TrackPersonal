@@ -15,6 +15,9 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // vector drawable support untuk minSdk 24
+        vectorDrawables { useSupportLibrary = true }
     }
 
     buildTypes {
@@ -29,6 +32,7 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        isCoreLibraryDesugaringEnabled = true
     }
     kotlinOptions {
         jvmTarget = "11"
@@ -86,4 +90,11 @@ dependencies {
     implementation("io.netty:netty-handler")
     // WorkManager
     implementation("androidx.work:work-runtime-ktx:2.9.0")
+    // Desugaring lib
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.2")
+    // CameraX
+    implementation("androidx.camera:camera-core:1.3.4")
+    implementation("androidx.camera:camera-camera2:1.3.4")
+    implementation("androidx.camera:camera-lifecycle:1.3.4")
+    implementation("androidx.camera:camera-view:1.3.4")
 }
