@@ -52,6 +52,7 @@ import android.provider.Settings
 import android.net.Uri
 import com.example.trackpersonal.ui.setting.SettingActivity
 import org.osmdroid.views.CustomZoomButtonsController
+import com.example.trackpersonal.utils.MqttInterval
 import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
@@ -231,6 +232,9 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        //tampilkan indikator interval saat awal masuk
+        refreshIntervalIndicator()
+
         initMap()
         initMapFabControls()
 
@@ -258,6 +262,9 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         binding.mapView.onResume()
+
+        //tampilkan indikator interval saat awal masuk
+        refreshIntervalIndicator()
     }
 
     override fun onPause() {
@@ -609,24 +616,40 @@ class MainActivity : AppCompatActivity() {
         MqttService.start(this)
     }
 
-    // ===== Logout =====
+    // + ADD: helper untuk update label "Interval: ..."
+    private fun refreshIntervalIndicator() {
+        val userKey = securePref.getCurrentUserKey() // dari Step 1
+        val seconds = securePref.getMqttIntervalSecondsForUser(userKey, defaultSeconds = 10)
+        binding.tvInterval.text = "Interval: ${MqttInterval.labelFor(seconds)}"
+    }
+
+    private fun proceedLocalSignOut() {
+        MqttService.stop(this)                // stop service
+        securePref.clearButKeepIntervals()    // bersihkan data, keep interval per user
+        val i = Intent(this, LoginActivity::class.java)
+        i.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        startActivity(i)
+        finish()
+    }
+
     private fun performLogout() {
         lifecycleScope.launch {
-            val repository = AuthRepository(securePref)
-            when (val result = repository.logout()) {
+            val repo = AuthRepository(securePref)
+            when (val res = repo.logout()) {
                 is Resource.Success -> {
-                    Toast.makeText(this@MainActivity, result.data?.message ?: "Logout berhasil", Toast.LENGTH_SHORT).show()
-                    securePref.clear()
-                    val intent = Intent(this@MainActivity, LoginActivity::class.java)
-                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                    startActivity(intent)
-                    finish()
+                    Toast.makeText(this@MainActivity, res.data?.message ?: "Logout berhasil", Toast.LENGTH_SHORT).show()
+                    proceedLocalSignOut()
                 }
                 is Resource.Error -> {
-                    Toast.makeText(this@MainActivity, result.message ?: "Gagal logout", Toast.LENGTH_SHORT).show()
+                    val m = res.message?.lowercase().orEmpty()
+                    if (m.contains("401") || m.contains("unauthorized") || m.contains("expired")) {
+                        Toast.makeText(this@MainActivity, "Sesi berakhir, keluar akun.", Toast.LENGTH_SHORT).show()
+                        proceedLocalSignOut()
+                    } else {
+                        Toast.makeText(this@MainActivity, res.message ?: "Gagal logout", Toast.LENGTH_SHORT).show()
+                    }
                 }
                 else -> Unit
             }
         }
-    }
-}
+    }}

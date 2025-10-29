@@ -97,4 +97,6 @@ dependencies {
     implementation("androidx.camera:camera-camera2:1.3.4")
     implementation("androidx.camera:camera-lifecycle:1.3.4")
     implementation("androidx.camera:camera-view:1.3.4")
+    // RTMP (Body cam)
+    implementation("com.github.pedroSG94.rtmp-rtsp-stream-client-java:rtplibrary:2.3.5")
 }

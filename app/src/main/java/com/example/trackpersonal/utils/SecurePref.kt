@@ -30,7 +30,7 @@ class SecurePref(context: Context) {
         private const val KEY_PROFILE_ID = "profile_id"
         private const val KEY_NRP = "user_nrp"
 
-        // MQTT per-install instance (optional, kalau nanti mau dipakai)
+        // MQTT per-install instance (optional)
         private const val KEY_CLIENT_INSTANCE_ID = "client_instance_id"
 
         // Unit Info
@@ -55,6 +55,9 @@ class SecurePref(context: Context) {
         // Heart rate (Activity -> Service)
         private const val KEY_HEART_BPM = "heart_bpm"
         private const val KEY_HEART_TS  = "heart_ts"
+
+        // MQTT Interval (per-user) -> simpan per userKey
+        private const val KEY_MQTT_INTERVAL_PREFIX = "mqtt_interval_s_"
     }
 
     private val sharedPref: SharedPreferences by lazy {
@@ -189,8 +192,64 @@ class SecurePref(context: Context) {
     fun getHeartRateTs(): Long? =
         if (sharedPref.contains(KEY_HEART_TS)) sharedPref.getLong(KEY_HEART_TS, 0L) else null
 
-    // ---------- CLEAR ALL ----------
+    // ---------- MQTT INTERVAL (per-user) ----------
+    private fun keyIntervalFor(userKey: String) = "$KEY_MQTT_INTERVAL_PREFIX$userKey"
+
+    fun saveMqttIntervalSecondsForUser(userKey: String, seconds: Int) {
+        sharedPref.edit().putInt(keyIntervalFor(userKey), seconds).apply()
+    }
+
+    fun getMqttIntervalSecondsForUser(userKey: String, defaultSeconds: Int = 10): Int {
+        return sharedPref.getInt(keyIntervalFor(userKey), defaultSeconds)
+    }
+
+    /**
+     * Tentukan userKey unik untuk pemetaan per-user.
+     * Prioritas: userId -> username -> nrp -> "default"
+     */
+    fun getCurrentUserKey(): String {
+        getUserId()?.let { return "uid_$it" }
+        getUsername()?.takeIf { it.isNotBlank() }?.let { return "u_$it" }
+        getNrp()?.takeIf { it.isNotBlank() }?.let { return "nrp_$it" }
+        return "default"
+    }
+
+    // optional listener
+    fun registerOnChangeListener(l: SharedPreferences.OnSharedPreferenceChangeListener) {
+        sharedPref.registerOnSharedPreferenceChangeListener(l)
+    }
+    fun unregisterOnChangeListener(l: SharedPreferences.OnSharedPreferenceChangeListener) {
+        sharedPref.unregisterOnSharedPreferenceChangeListener(l)
+    }
+
+    // ---------- CLEAR ----------
     fun clear() {
         sharedPref.edit().clear().apply()
+    }
+
+    /**
+     * Hapus semua data KECUALI entri interval per-user (key yang diawali mqtt_interval_s_).
+     * Dipakai saat logout agar setting interval tiap user tetap tersimpan.
+     */
+    fun clearButKeepIntervals() {
+        // simpan semua pasangan kunci-nilai interval
+        val all = sharedPref.all
+        val toKeep = all.filterKeys { it.startsWith(KEY_MQTT_INTERVAL_PREFIX) }
+
+        // clear semua
+        sharedPref.edit().clear().apply()
+
+        // restore yang disimpan
+        val e = sharedPref.edit()
+        for ((k, v) in toKeep) {
+            when (v) {
+                is Int -> e.putInt(k, v)
+                is Long -> e.putLong(k, v)
+                is String -> e.putString(k, v)
+                is Boolean -> e.putBoolean(k, v)
+                is Float -> e.putFloat(k, v)
+            }
+        }
+        e.apply()
     }
 }

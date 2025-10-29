@@ -9,7 +9,6 @@
     style="@style/ScreenBackground"
     tools:context=".ui.setting.SettingActivity">
 
-    <!-- Toolbar -->
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/toolbar"
         android:layout_width="0dp"
@@ -20,7 +19,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <!-- Judul center -->
         <TextView
             android:id="@+id/tvCenterTitle"
             android:layout_width="wrap_content"
@@ -31,7 +29,6 @@
             android:textColor="@color/primary_cyan"/>
     </com.google.android.material.appbar.MaterialToolbar>
 
-    <!-- Label -->
     <TextView
         android:id="@+id/tvModeLabel"
         android:layout_width="wrap_content"
@@ -39,12 +36,12 @@
         android:text="Dark/Light Mode"
         android:textSize="13sp"
         style="@style/TextColor"
+        android:textStyle="bold"
         app:layout_constraintTop_toBottomOf="@id/toolbar"
         app:layout_constraintStart_toStartOf="parent"
         android:layout_marginTop="24dp"
-        android:layout_marginStart="30dp"/>
+        android:layout_marginStart="@dimen/screen_padding"/>
 
-    <!-- Switch kecil -->
     <androidx.appcompat.widget.SwitchCompat
         android:id="@+id/switchMode"
         android:layout_width="wrap_content"
@@ -58,6 +55,51 @@
         app:layout_constraintTop_toTopOf="@id/tvModeLabel"
         app:layout_constraintBottom_toBottomOf="@id/tvModeLabel"
         app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginEnd="30dp"/>
+        android:layout_marginEnd="@dimen/screen_padding"/>
+
+    <TextView
+        android:id="@+id/tvIntervalLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Interval Pengiriman Data"
+        android:textSize="13sp"
+        style="@style/TextColor"
+        android:textStyle="bold"
+        app:layout_constraintTop_toBottomOf="@id/tvModeLabel"
+        app:layout_constraintStart_toStartOf="parent"
+        android:layout_marginTop="24dp"
+        android:layout_marginStart="@dimen/screen_padding"/>
+
+    <!-- DROPDOWN: Interval Pengiriman Data (Material) -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/tilInterval"
+        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/screen_padding"
+        android:layout_marginEnd="@dimen/screen_padding"
+        android:layout_marginTop="10dp"
+        app:boxBackgroundMode="outline"
+        app:endIconMode="dropdown_menu"
+        app:boxStrokeColor="@color/primary_cyan"
+        app:hintTextColor="@color/primary_cyan"
+        app:layout_constraintTop_toBottomOf="@id/tvIntervalLabel"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+    <com.google.android.material.textfield.MaterialAutoCompleteTextView
+            android:id="@+id/actInterval"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Pilih interval"
+            android:importantForAutofill="no"
+            android:inputType="none"
+            android:minHeight="56dp"
+            android:paddingStart="5dp"
+            android:textColorHint="#A0AFC6"
+            android:textSize="12dp"
+            tools:ignore="SpeakableTextPresentCheck" />
+    </com.google.android.material.textfield.TextInputLayout>
+
 
 </androidx.constraintlayout.widget.ConstraintLayout>
