@@ -30,12 +30,12 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
         isCoreLibraryDesugaringEnabled = true
     }
     kotlinOptions {
-        jvmTarget = "11"
+        jvmTarget = "17"
     }
     buildFeatures {
         viewBinding = true
@@ -98,5 +98,5 @@ dependencies {
     implementation("androidx.camera:camera-lifecycle:1.3.4")
     implementation("androidx.camera:camera-view:1.3.4")
     // RTMP (Body cam)
-    implementation("com.github.pedroSG94.rtmp-rtsp-stream-client-java:rtplibrary:2.3.5")
+    implementation("com.github.pedroSG94.rtmp-rtsp-stream-client-java:rtplibrary:2.2.2")
 }
