@@ -5,12 +5,10 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" /> <!-- Lokasi -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <!--Jika nanti perlu tracking di background, aktifkan baris di bawah (dan tangani izin runtime Android 10+)-->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" /> <!-- Jika nanti perlu tracking di background, aktifkan baris di bawah (dan tangani izin runtime Android 10+) -->
     <uses-permission
         android:name="android.permission.ACCESS_BACKGROUND_LOCATION"
-        tools:targetApi="29" />
-    <!-- Foreground Service -->
+        tools:targetApi="29" /> <!-- Foreground Service -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" /> <!-- Granular FGS Location (Android 14 / API 34) -->
     <uses-permission
         android:name="android.permission.FOREGROUND_SERVICE_LOCATION"
@@ -28,19 +26,25 @@
     <uses-permission
         android:name="android.permission.BLUETOOTH_CONNECT"
         tools:targetApi="31" /> <!-- Memanggil EMEI -->
-    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
-    <!-- Notifikasi (Android 13+) -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" /> <!-- Notifikasi (Android 13+) -->
     <uses-permission
         android:name="android.permission.POST_NOTIFICATIONS"
-        tools:targetApi="33" />
-    <!-- Untuk Mqtt background tetap berjalan -->
-    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
-    <uses-permission android:name="android.permission.WAKE_LOCK"/>
-    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
-    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE"/>
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
-    <!-- BOOT permission untuk auto-start setelah perangkat menyala -->
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+        tools:targetApi="33" /> <!-- Untuk Mqtt background tetap berjalan -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" /> <!-- BOOT permission untuk auto-start setelah perangkat menyala -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- (opsional untuk nanti RTMP mic) -->
+     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- Tidak wajib hard requirement camera -->
+    <uses-feature
+        android:name="android.hardware.camera.any"
+        android:required="false" />
 
     <application
         android:allowBackup="true"
@@ -52,24 +56,30 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.TrackPersonal"
         android:usesCleartextTraffic="true">
+        <activity
+            android:name=".ui.setting.SettingActivity"
+            android:exported="false" />
         <!-- Service -->
         <service
             android:name=".mqtt.MqttService"
             android:exported="false"
-            android:foregroundServiceType="location|dataSync" />
-
-        <!-- Receiver untuk memicu start setelah BOOT/USER_UNLOCKED -->
+            android:foregroundServiceType="location|dataSync" /> <!-- Receiver untuk memicu start setelah BOOT/USER_UNLOCKED -->
         <receiver
             android:name=".mqtt.BootReceiver"
             android:enabled="true"
             android:exported="false">
             <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED"/>
-                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED"/>
-                <action android:name="android.intent.action.USER_UNLOCKED"/>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+                <action android:name="android.intent.action.USER_UNLOCKED" />
             </intent-filter>
         </receiver>
 
+        <activity
+            android:name=".ui.bodycam.BodyCamActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.TrackPersonal" />
         <activity
             android:name=".ui.about.AboutActivity"
             android:exported="false" />

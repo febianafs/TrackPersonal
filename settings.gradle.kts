@@ -9,6 +9,8 @@ pluginManagement {
         }
         mavenCentral()
         gradlePluginPortal()
+        // JitPack untuk dependensi dari GitHub (pedroSG94, HaishinKit, dll.)
+        maven("https://jitpack.io")
     }
 }
 dependencyResolutionManagement {
@@ -16,6 +18,8 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // JitPack juga di sini (penting!)
+        maven("https://jitpack.io")
     }
 }
 

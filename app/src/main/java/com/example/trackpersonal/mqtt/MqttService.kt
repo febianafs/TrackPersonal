@@ -6,6 +6,7 @@ import android.location.Location
 import android.net.*
 import android.net.wifi.WifiManager
 import android.os.*
+import android.os.BatteryManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
@@ -25,6 +26,9 @@ class MqttService : Service() {
         private const val ACTION_STOP  = "MQTT_STOP"
         private const val ACTION_SOS   = "MQTT_SOS"
         private const val EXTRA_SOS_ACTIVE = "sos_active"
+
+        // Broadcast internal untuk ubah interval
+        const val ACTION_INTERVAL_CHANGED = "MQTT_INTERVAL_CHANGED"
 
         fun start(context: Context) {
             val i = Intent(context, MqttService::class.java).setAction(ACTION_START)
@@ -56,16 +60,16 @@ class MqttService : Service() {
     private var latestHeartTs: Long = 0
     private var latestBatteryPercent: Int = 0
 
-    // loop 10 detik
+    // loop periodik (dibaca dari SecurePref)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val running = AtomicBoolean(false)
     private var tickerJob: Job? = null
-    private val PERIOD_MS = 10_000L
+    private var periodMs: Long = 10_000L
 
     // network callback
     private var netCallback: ConnectivityManager.NetworkCallback? = null
 
-    // === WiFiLock agar Wi-Fi tidak tidur saat layar mati ===
+    // WiFiLock agar Wi-Fi tidak tidur
     private var wifiLock: WifiManager.WifiLock? = null
 
     // battery receiver (sticky)
@@ -76,6 +80,19 @@ class MqttService : Service() {
             val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, 100)
             if (level >= 0 && scale > 0) {
                 latestBatteryPercent = (level * 100) / scale
+            }
+        }
+    }
+
+    // receiver untuk perubahan interval
+    private val intervalReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action != ACTION_INTERVAL_CHANGED) return
+            val newPeriod = readPeriodFromPref()
+            if (newPeriod != periodMs) {
+                periodMs = newPeriod
+                restartTicker()
+                updateNotif("Sending every ${periodMs / 1000}s…")
             }
         }
     }
@@ -107,8 +124,23 @@ class MqttService : Service() {
         // Ambil WiFiLock → cegah Wi-Fi tidur saat screen off
         acquireWifiLock()
 
-        // battery realtime
-        registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        // battery realtime (siaran sistem → EXPORTED)
+        val batteryFilter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
+        if (Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(batteryReceiver, batteryFilter, Context.RECEIVER_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            registerReceiver(batteryReceiver, batteryFilter)
+        }
+
+        // listen perubahan interval (siaran internal app → NOT_EXPORTED)
+        val intervalFilter = IntentFilter(ACTION_INTERVAL_CHANGED)
+        if (Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(intervalReceiver, intervalFilter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            registerReceiver(intervalReceiver, intervalFilter)
+        }
 
         fused = LocationServices.getFusedLocationProviderClient(this)
         startLocationUpdates()
@@ -116,7 +148,17 @@ class MqttService : Service() {
         registerNetworkCallback()
         mqtt.connect() // soft ensure
 
+        // Baca interval awal dari pref
+        periodMs = readPeriodFromPref()
+        updateNotif("Sending every ${periodMs / 1000}s…")
+
         startTicker()
+    }
+
+    private fun readPeriodFromPref(): Long {
+        val userKey = pref.getCurrentUserKey()
+        val seconds = pref.getMqttIntervalSecondsForUser(userKey, defaultSeconds = 10)
+        return (seconds.coerceAtLeast(1)).toLong() * 1000L
     }
 
     private fun acquireWifiLock() {
@@ -147,9 +189,14 @@ class MqttService : Service() {
                 try { mqtt.connect() } catch (_: Exception) {} // debounced di helper
                 refreshLatestHeartFromPref()
                 sendRadioDataOnce()
-                delay(PERIOD_MS)
+                delay(periodMs)
             }
         }
+    }
+
+    private fun restartTicker() {
+        stopTicker()
+        startTicker()
     }
 
     private fun stopTicker() {
@@ -218,7 +265,8 @@ class MqttService : Service() {
             batteryLevel = latestBatteryPercent,
             timestamp = ts
         )
-        updateNotif("Sending every 10s…")
+        // teks notif ikut interval aktif
+        updateNotif("Sending every ${periodMs / 1000}s…")
     }
 
     // ===== lokasi background =====
@@ -315,6 +363,7 @@ class MqttService : Service() {
 
     override fun onDestroy() {
         try { unregisterReceiver(batteryReceiver) } catch (_: Exception) {}
+        try { unregisterReceiver(intervalReceiver) } catch (_: Exception) {}
         try { fused.removeLocationUpdates(locationCallback) } catch (_: Exception) {}
         unregisterNetworkCallback()
         stopTicker()
