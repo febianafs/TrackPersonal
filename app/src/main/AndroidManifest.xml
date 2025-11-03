@@ -41,10 +41,17 @@
     <!-- (opsional untuk nanti RTMP mic) -->
      <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
-    <!-- Tidak wajib hard requirement camera -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+
+    <!-- Tidak wajib hard requirement camera dan mic -->
     <uses-feature
         android:name="android.hardware.camera.any"
         android:required="false" />
+    <uses-feature
+        android:name="android.hardware.microphone"
+        android:required="false" />
+
 
     <application
         android:allowBackup="true"
@@ -59,6 +66,10 @@
         <activity
             android:name=".ui.setting.SettingActivity"
             android:exported="false" />
+        <service
+            android:name=".ui.bodycam.BodyCamService"
+            android:exported="false"
+            android:foregroundServiceType="camera|microphone" />
         <!-- Service -->
         <service
             android:name=".mqtt.MqttService"

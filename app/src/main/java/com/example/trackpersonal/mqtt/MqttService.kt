@@ -10,6 +10,7 @@ import android.os.BatteryManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.ContextCompat.registerReceiver
 import com.example.trackpersonal.R
 import com.example.trackpersonal.utils.SecurePref
 import com.google.android.gms.location.*
@@ -27,8 +28,8 @@ class MqttService : Service() {
         private const val ACTION_SOS   = "MQTT_SOS"
         private const val EXTRA_SOS_ACTIVE = "sos_active"
 
-        // Broadcast internal untuk ubah interval
-        const val ACTION_INTERVAL_CHANGED = "MQTT_INTERVAL_CHANGED"
+        // Broadcast internal untuk ubah interval (fully-qualified)
+        const val ACTION_INTERVAL_CHANGED = "com.example.trackpersonal.MQTT_INTERVAL_CHANGED"
 
         fun start(context: Context) {
             val i = Intent(context, MqttService::class.java).setAction(ACTION_START)
@@ -124,23 +125,25 @@ class MqttService : Service() {
         // Ambil WiFiLock → cegah Wi-Fi tidur saat screen off
         acquireWifiLock()
 
-        // battery realtime (siaran sistem → EXPORTED)
+        // ====== DAFTARKAN RECEIVER DENGAN ANDROIDX ======
+        // battery realtime (system broadcast → EXPORTED)
         val batteryFilter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
-        if (Build.VERSION.SDK_INT >= 33) {
-            registerReceiver(batteryReceiver, batteryFilter, Context.RECEIVER_EXPORTED)
-        } else {
-            @Suppress("DEPRECATION")
-            registerReceiver(batteryReceiver, batteryFilter)
-        }
+        registerReceiver(
+            /* context = */ this,
+            /* receiver = */ batteryReceiver,
+            /* filter = */ batteryFilter,
+            /* flags = */ ContextCompat.RECEIVER_EXPORTED
+        )
 
-        // listen perubahan interval (siaran internal app → NOT_EXPORTED)
+        // listen perubahan interval (broadcast internal → NOT_EXPORTED)
         val intervalFilter = IntentFilter(ACTION_INTERVAL_CHANGED)
-        if (Build.VERSION.SDK_INT >= 33) {
-            registerReceiver(intervalReceiver, intervalFilter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            @Suppress("DEPRECATION")
-            registerReceiver(intervalReceiver, intervalFilter)
-        }
+        registerReceiver(
+            /* context = */ this,
+            /* receiver = */ intervalReceiver,
+            /* filter = */ intervalFilter,
+            /* flags = */ ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+        // ================================================
 
         fused = LocationServices.getFusedLocationProviderClient(this)
         startLocationUpdates()
@@ -265,7 +268,6 @@ class MqttService : Service() {
             batteryLevel = latestBatteryPercent,
             timestamp = ts
         )
-        // teks notif ikut interval aktif
         updateNotif("Sending every ${periodMs / 1000}s…")
     }
 

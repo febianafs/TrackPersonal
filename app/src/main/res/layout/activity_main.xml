@@ -522,49 +522,6 @@
                         android:textSize="12sp" />
                 </com.google.android.material.card.MaterialCardView>
 
-                <!-- CARD STREAMING (di bawah intervalCard) -->
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/streamingCard"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="top|start"
-                    android:layout_marginStart="16dp"
-                    android:layout_marginTop="80dp"
-                    app:cardBackgroundColor="@color/deep_blue_900"
-                    app:cardCornerRadius="16dp"
-                    app:strokeColor="@color/deep_blue_700"
-                    app:strokeWidth="1dp">
-
-                    <LinearLayout
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:paddingStart="12dp"
-                        android:paddingTop="6dp"
-                        android:paddingEnd="12dp"
-                        android:paddingBottom="6dp"
-                        android:gravity="center_vertical">
-
-                        <!-- Titik status -->
-                        <View
-                            android:id="@+id/indicatorStreaming"
-                            android:layout_width="10dp"
-                            android:layout_height="10dp"
-                            android:layout_marginEnd="8dp"
-                            android:background="@drawable/bg_stream_indicator" />
-
-                        <!-- Label -->
-                        <TextView
-                            android:id="@+id/tvStreaming"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Streaming"
-                            android:textColor="@color/white"
-                            android:textSize="12sp"
-                            android:includeFontPadding="false" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/batteryCard"
                     android:layout_width="wrap_content"

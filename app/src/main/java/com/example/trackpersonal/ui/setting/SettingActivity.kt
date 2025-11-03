@@ -5,8 +5,6 @@ import android.os.Bundle
 import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.app.AppCompatDelegate
-import androidx.appcompat.widget.SwitchCompat
 import com.example.trackpersonal.R
 import com.example.trackpersonal.mqtt.MqttService
 import com.example.trackpersonal.utils.MqttInterval
@@ -16,7 +14,6 @@ import com.google.android.material.textfield.MaterialAutoCompleteTextView
 
 class SettingActivity : AppCompatActivity() {
 
-    private lateinit var switchMode: SwitchCompat
     private lateinit var actInterval: MaterialAutoCompleteTextView
     private lateinit var securePref: SecurePref
 
@@ -30,32 +27,7 @@ class SettingActivity : AppCompatActivity() {
 
         securePref = SecurePref(this)
 
-        // ========== Dark/Light ==========
-        switchMode = findViewById(R.id.switchMode)
-        val uiSp = getSharedPreferences("ui_prefs", MODE_PRIVATE)
-        val savedMode = uiSp.getInt("night_mode", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
-        AppCompatDelegate.setDefaultNightMode(savedMode)
-        delegate.localNightMode = savedMode
-        switchMode.isChecked = when (savedMode) {
-            AppCompatDelegate.MODE_NIGHT_YES -> true
-            AppCompatDelegate.MODE_NIGHT_NO  -> false
-            else -> {
-                val isNight = (resources.configuration.uiMode and
-                        android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
-                        android.content.res.Configuration.UI_MODE_NIGHT_YES
-                isNight
-            }
-        }
-        switchMode.setOnCheckedChangeListener { _, isChecked ->
-            val newMode = if (isChecked) AppCompatDelegate.MODE_NIGHT_YES
-            else AppCompatDelegate.MODE_NIGHT_NO
-            uiSp.edit().putInt("night_mode", newMode).apply()
-            AppCompatDelegate.setDefaultNightMode(newMode)
-            delegate.localNightMode = newMode
-            recreate()
-        }
-
-        // ========== Interval Dropdown ==========
+        // ===== Interval Dropdown =====
         actInterval = findViewById(R.id.actInterval)
 
         val labels = MqttInterval.labels()
@@ -70,8 +42,9 @@ class SettingActivity : AppCompatActivity() {
             securePref.saveMqttIntervalSecondsForUser(userKey, seconds)
             Toast.makeText(this, "Interval diset: ${MqttInterval.labelFor(seconds)}", Toast.LENGTH_SHORT).show()
 
-            // Beritahu service agar langsung pakai interval baru (broadcast internal)
-            val i = Intent(MqttService.ACTION_INTERVAL_CHANGED).setPackage(packageName)
+            // Kirim broadcast internal ke service
+            val i = Intent(MqttService.ACTION_INTERVAL_CHANGED)
+                .setPackage(packageName)
             sendBroadcast(i)
         }
     }

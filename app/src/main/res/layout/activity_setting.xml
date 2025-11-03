@@ -9,6 +9,7 @@
     style="@style/ScreenBackground"
     tools:context=".ui.setting.SettingActivity">
 
+    <!-- Toolbar -->
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/toolbar"
         android:layout_width="0dp"
@@ -29,34 +30,7 @@
             android:textColor="@color/primary_cyan"/>
     </com.google.android.material.appbar.MaterialToolbar>
 
-    <TextView
-        android:id="@+id/tvModeLabel"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Dark/Light Mode"
-        android:textSize="13sp"
-        style="@style/TextColor"
-        android:textStyle="bold"
-        app:layout_constraintTop_toBottomOf="@id/toolbar"
-        app:layout_constraintStart_toStartOf="parent"
-        android:layout_marginTop="24dp"
-        android:layout_marginStart="@dimen/screen_padding"/>
-
-    <androidx.appcompat.widget.SwitchCompat
-        android:id="@+id/switchMode"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        app:track="@drawable/track"
-        android:thumb="@drawable/thumb"
-        android:showText="false"
-        android:splitTrack="false"
-        android:scaleX="0.85"
-        android:scaleY="0.85"
-        app:layout_constraintTop_toTopOf="@id/tvModeLabel"
-        app:layout_constraintBottom_toBottomOf="@id/tvModeLabel"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginEnd="@dimen/screen_padding"/>
-
+    <!-- Label Interval -->
     <TextView
         android:id="@+id/tvIntervalLabel"
         android:layout_width="wrap_content"
@@ -65,12 +39,12 @@
         android:textSize="13sp"
         style="@style/TextColor"
         android:textStyle="bold"
-        app:layout_constraintTop_toBottomOf="@id/tvModeLabel"
+        app:layout_constraintTop_toBottomOf="@id/toolbar"
         app:layout_constraintStart_toStartOf="parent"
         android:layout_marginTop="24dp"
         android:layout_marginStart="@dimen/screen_padding"/>
 
-    <!-- DROPDOWN: Interval Pengiriman Data (Material) -->
+    <!-- Dropdown Interval -->
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/tilInterval"
         style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
@@ -87,7 +61,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-    <com.google.android.material.textfield.MaterialAutoCompleteTextView
+        <com.google.android.material.textfield.MaterialAutoCompleteTextView
             android:id="@+id/actInterval"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -100,6 +74,5 @@
             android:textSize="12dp"
             tools:ignore="SpeakableTextPresentCheck" />
     </com.google.android.material.textfield.TextInputLayout>
-
 
 </androidx.constraintlayout.widget.ConstraintLayout>

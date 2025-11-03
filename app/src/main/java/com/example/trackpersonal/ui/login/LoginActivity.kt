@@ -23,6 +23,9 @@ import com.example.trackpersonal.utils.Resource
 import com.example.trackpersonal.utils.SecurePref
 import kotlinx.coroutines.launch
 
+// ⬇️ Tambahan import SessionStore
+import com.example.trackpersonal.storage.SessionStore
+
 class LoginActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityLoginBinding
@@ -87,6 +90,18 @@ class LoginActivity : AppCompatActivity() {
                                 ).show()
                                 return@collect
                             }
+
+                            // ⬇️ Tambahan: simpan session ringan (userId & username)
+                            val user = result.data?.data?.user
+                            SessionStore(this@LoginActivity).saveUser(
+                                id = user?.id?.toString(),
+                                username = user?.username
+                                    ?: user?.name
+                                    ?: user?.profile?.profile?.fullName
+                                    ?: "User"
+                            )
+                            // ⬆️
+
                             startActivity(Intent(this@LoginActivity, MainActivity::class.java))
                             finish()
                         }
