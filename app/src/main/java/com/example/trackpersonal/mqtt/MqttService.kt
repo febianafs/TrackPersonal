@@ -12,6 +12,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.ContextCompat.registerReceiver
 import com.example.trackpersonal.R
+import com.example.trackpersonal.heart.HeartRateRepository
 import com.example.trackpersonal.utils.SecurePref
 import com.google.android.gms.location.*
 import kotlinx.coroutines.*
@@ -52,6 +53,10 @@ class MqttService : Service() {
     private lateinit var pref: SecurePref
     private lateinit var fused: FusedLocationProviderClient
     private val mqtt: MqttHelper by lazy { MqttHelper(this) { /* optional */ } }
+
+    // 👇 tambahkan ini
+    private val heartRepo by lazy { HeartRateRepository(this) }
+    private var heartJob: Job? = null
 
     // lokasi terakhir
     private var lastKnown: Location? = null
@@ -155,6 +160,26 @@ class MqttService : Service() {
         periodMs = readPeriodFromPref()
         updateNotif("Sending every ${periodMs / 1000}s…")
 
+        // 👇 START heart rate repo di background service ini
+        heartRepo.start()
+
+        // 👇 Collect HR state di scope service (jalan terus walaupun layar mati)
+        heartJob = scope.launch {
+            heartRepo.state.collect { st ->
+                latestHeartRate = st.bpm
+                latestHeartTs = st.lastUpdatedMillis   // ini masih millis, dipakai di MQTT
+
+                // optional: simpan ke SecurePref sebagai backup (dalam satuan detik)
+                try {
+                    pref.saveHeartRate(
+                        bpm = st.bpm,
+                        tsSec = st.lastUpdatedMillis / 1000L
+                    )
+                } catch (_: Exception) { }
+            }
+        }
+
+
         startTicker()
     }
 
@@ -190,7 +215,7 @@ class MqttService : Service() {
         tickerJob = scope.launch {
             while (isActive) {
                 try { mqtt.connect() } catch (_: Exception) {} // debounced di helper
-                refreshLatestHeartFromPref()
+                //refreshLatestHeartFromPref()
                 sendRadioDataOnce()
                 delay(periodMs)
             }
@@ -371,6 +396,12 @@ class MqttService : Service() {
         stopTicker()
         releaseWifiLock()
         try { mqtt.disconnect() } catch (_: Exception) {}
+
+        // 👇 stop heart repo & job
+        try { heartRepo.stop() } catch (_: Exception) {}
+        heartJob?.cancel()
+        heartJob = null
+
         scope.cancel()
         running.set(false)
         super.onDestroy()
