@@ -32,6 +32,7 @@ import kotlinx.coroutines.withContext
 import java.util.UUID
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 class HeartRateRepository(private val context: Context) {
 
@@ -40,13 +41,24 @@ class HeartRateRepository(private val context: Context) {
         val UUID_HR_MEASUREMENT: UUID = UUID.fromString("00002A37-0000-1000-8000-00805f9b34fb")
         val UUID_CLIENT_CHAR_CONFIG: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
 
-        // Tuning (boleh kamu adjust bila perlu)
-        private const val STALE_TIMEOUT_MS = 2_000L              // no packets -> 0 bpm
-        private const val WEAR_CONSEC_REQUIRED = 4               // paket "worn" beruntun
-        private const val STABILIZE_MS = 1_500L                  // abaikan sesaat setelah CCCD aktif
-        private const val SUPPRESS_AFTER_NOT_WORN_MS = 5_000L    // block nilai lama setelah dilepas
-        private const val VAR_WINDOW_MS = 5_000L                 // jendela variabilitas
-        private const val VAR_MIN_SPREAD = 4                     // spread minimal agar dianggap valid
+        // Tuning
+        private const val STALE_TIMEOUT_MS = 2_000L          // no packets -> 0 bpm
+        private const val WEAR_CONSEC_REQUIRED = 2           // butuh 2 paket "worn"
+        private const val STABILIZE_MS = 500L                // abaikan 0.5s pertama
+        private const val SUPPRESS_AFTER_NOT_WORN_MS = 5_000L
+        private const val VAR_WINDOW_MS = 5_000L
+        private const val VAR_MIN_SPREAD = 4
+
+        // smoothing & clamp
+        private const val TAU_SMOOTH_SEC = 2.0               // lebih responsif
+        private const val MAX_JUMP_PER_SEC = 80.0            // loncatan HR maksimal / detik
+
+        // jumlah paket 0 berturut-turut yang dibutuhkan sebelum UI jadi 0 bpm
+        private const val ZERO_CONSEC_REQUIRED = 2
+
+        // deteksi pemakaian ulang (rewear) berdasarkan jarak antar paket
+        private const val REWEAR_MAX_INTERVAL_MS = 1_500L    // paket dianggap "cepat" < 1.5s
+        private const val REWEAR_CONSEC_REQUIRED = 3         // butuh 3 paket cepat berturut-turut
     }
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -74,6 +86,20 @@ class HeartRateRepository(private val context: Context) {
     private data class Sample(val t: Long, val bpm: Int, val rrCount: Int)
     private val samples = ArrayDeque<Sample>()  // keep last ≤ VAR_WINDOW_MS
 
+    // smoothing
+    private var hrFiltered: Double? = null
+    private var lastUpdateMs: Long = 0L
+
+    // flag “notWornStable” agar kalau sudah 0 stabil tidak kedip ke HR lama
+    private var notWornStable = false
+
+    // counter paket 0 (kalau mau dipakai nanti)
+    private var consecZeroPackets = 0
+
+    // deteksi pemakaian ulang (setelah "not worn stable")
+    private var lastPacketMs: Long = 0L
+    private var reWearConsec: Int = 0
+
     private fun resetGates() {
         notificationsReady = false
         consecWearPackets = 0
@@ -82,6 +108,12 @@ class HeartRateRepository(private val context: Context) {
         lastEmittedBpm = -1
         lastEmittedWorn = false
         samples.clear()
+        hrFiltered = null
+        lastUpdateMs = 0L
+        consecZeroPackets = 0
+        notWornStable = false
+        lastPacketMs = 0L
+        reWearConsec = 0
     }
 
     /** ================= Public API ================= */
@@ -140,6 +172,7 @@ class HeartRateRepository(private val context: Context) {
                 runCatching { connect(result.device) }
                 runCatching { scanner.stopScan(this) }
             }
+
             @SuppressLint("MissingPermission")
             override fun onBatchScanResults(results: MutableList<ScanResult>) {
                 if (!hasBlePermissions()) return
@@ -218,7 +251,13 @@ class HeartRateRepository(private val context: Context) {
         @SuppressLint("MissingPermission")
         override fun onCharacteristicChanged(g: BluetoothGatt, ch: BluetoothGattCharacteristic) {
             if (ch.uuid != UUID_HR_MEASUREMENT || !notificationsReady) return
+
             val now = System.currentTimeMillis()
+
+            // hitung jarak waktu antar paket
+            val dtPacket = if (lastPacketMs == 0L) Long.MAX_VALUE else (now - lastPacketMs)
+            lastPacketMs = now
+
             val p = parseHrMeasurement(ch.value)      // bpm, isWorn, contactSupported, rrCount
             val bpmRaw = p.bpm
             val wornFlag = p.isWorn
@@ -231,6 +270,32 @@ class HeartRateRepository(private val context: Context) {
             // 2) Hard-suppress setelah not worn (tahan nilai > 0 beberapa detik)
             if (now < suppressUntilMillis && wornFlag) return
 
+            // 2b) Kalau sudah "notWornStable" dan TIDAK ada contact flag (Garmin),
+            //     kita kunci di 0 bpm dan TIDAK akan keluar dari lock
+            //     kecuali ada beberapa paket CEPAT + ada RR (rrCount > 0).
+            if (notWornStable && !contactSupported) {
+                val hasRR = rrCount > 0
+                if (bpmRaw > 0 && hasRR && dtPacket <= REWEAR_MAX_INTERVAL_MS) {
+                    // kandidat dipakai lagi
+                    reWearConsec++
+                    if (reWearConsec < REWEAR_CONSEC_REQUIRED) {
+                        restartStaleWatchdog()
+                        return
+                    } else {
+                        // cukup bukti: jam benar-benar dipakai lagi
+                        notWornStable = false
+                        hrFiltered = null
+                        reWearConsec = 0
+                        // lanjut ke heuristik di bawah sebagai "dipakai lagi"
+                    }
+                } else {
+                    // paket lambat ATAU tidak ada RR → tetap anggap tidak dipakai, abaikan saja
+                    reWearConsec = 0
+                    restartStaleWatchdog()
+                    return
+                }
+            }
+
             // 3) Heuristik variabilitas/RR untuk device tanpa contact flag
             pushSample(now, bpmRaw, rrCount)
             val lowVariance = isLowVariance(now)
@@ -241,6 +306,7 @@ class HeartRateRepository(private val context: Context) {
             var wornFinal = false
 
             if (contactSupported) {
+                // device punya contact flag → pakai langsung
                 if (wornFlag) {
                     accept = true; bpmFinal = max(0, bpmRaw); wornFinal = true
                     consecWearPackets = WEAR_CONSEC_REQUIRED
@@ -250,7 +316,9 @@ class HeartRateRepository(private val context: Context) {
                     suppressUntilMillis = now + SUPPRESS_AFTER_NOT_WORN_MS
                 }
             } else {
+                // device TANPA contact flag (tipikal jam Garmin)
                 if (bpmRaw > 0) {
+                    // HR > 0 tapi variansi kecil & tidak ada RR → kemungkinan jam dilepas
                     if (lowVariance && rrAbsent) {
                         accept = true; bpmFinal = 0; wornFinal = false
                         consecWearPackets = 0
@@ -262,13 +330,20 @@ class HeartRateRepository(private val context: Context) {
                         }
                     }
                 } else {
+                    // HR mentah 0 → anggap tidak dipakai
                     accept = true; bpmFinal = 0; wornFinal = false
                     consecWearPackets = 0
                     suppressUntilMillis = now + SUPPRESS_AFTER_NOT_WORN_MS
                 }
             }
 
-            if (accept) emitIfChanged(bpmFinal, wornFinal, now)
+            if (accept) processAndEmit(bpmFinal, wornFinal, now)
+
+            // kalau udah pakai lagi (>= WEAR_CONSEC_REQUIRED paket), langsung izinkan update
+            if (consecWearPackets >= WEAR_CONSEC_REQUIRED) {
+                suppressUntilMillis = 0L
+            }
+
             restartStaleWatchdog()
         }
     }
@@ -305,7 +380,8 @@ class HeartRateRepository(private val context: Context) {
         return !anyRr
     }
 
-    /** ===== Emission & watchdog ===== */
+    /** ===== Emission & smoothing & watchdog ===== */
+
     private fun emitIfChanged(bpm: Int, worn: Boolean, ts: Long) {
         if (bpm == lastEmittedBpm && worn == lastEmittedWorn) return
         lastEmittedBpm = bpm
@@ -320,34 +396,67 @@ class HeartRateRepository(private val context: Context) {
         )
     }
 
+    private fun processAndEmit(bpm: Int, worn: Boolean, ts: Long) {
+        // kalau tidak dipakai (not worn) → langsung nol dan hentikan smoothing
+        if (!worn || bpm <= 0) {
+            if (!notWornStable) {
+                notWornStable = true
+                hrFiltered = 0.0
+                lastUpdateMs = ts
+                emitIfChanged(0, false, ts)
+            }
+            return
+        }
+
+        // kalau mulai dipakai lagi → reset flag dan smoothing
+        if (notWornStable) {
+            notWornStable = false
+            hrFiltered = null
+        }
+
+        // smoothing normal untuk data valid
+        val prev = hrFiltered ?: bpm.toDouble()
+        val dtSec = ((ts - lastUpdateMs).coerceAtLeast(1L)).toDouble() / 1000.0
+        lastUpdateMs = ts
+
+        val alphaBase = (dtSec / (TAU_SMOOTH_SEC + dtSec)).coerceIn(0.0, 1.0)
+        val maxJump = MAX_JUMP_PER_SEC * dtSec
+        val limitedRaw = when {
+            bpm - prev > maxJump -> prev + maxJump
+            prev - bpm > maxJump -> prev - maxJump
+            else -> bpm.toDouble()
+        }
+
+        val diff = kotlin.math.abs(limitedRaw - prev)
+        val alpha = if (limitedRaw >= prev) 0.87 else if (diff > 10.0) max(alphaBase, 0.6) else alphaBase
+        val filtered = prev + alpha * (limitedRaw - prev)
+        hrFiltered = filtered
+
+        val filteredInt = filtered.roundToInt().coerceIn(30, 230)
+        emitIfChanged(filteredInt, true, ts)
+    }
+
     private fun restartStaleWatchdog() {
         staleJob?.cancel()
         staleJob = scope.launch {
             delay(STALE_TIMEOUT_MS)
-            samples.clear()
-            consecWearPackets = 0
-            if (lastEmittedBpm != 0 || lastEmittedWorn != false) {
-                lastEmittedBpm = 0
-                lastEmittedWorn = false
-                _state.emit(
-                    _state.value.copy(
-                        bpm = 0,
-                        isWorn = false,
-                        lastUpdatedMillis = System.currentTimeMillis()
-                    )
+            // kalau tidak ada data lagi selama STALE_TIMEOUT_MS → langsung 0 stabil
+            if (!_state.value.isWorn) return@launch // sudah 0
+            hrFiltered = 0.0
+            lastEmittedBpm = 0
+            lastEmittedWorn = false
+            _state.emit(
+                _state.value.copy(
+                    bpm = 0,
+                    isWorn = false,
+                    lastUpdatedMillis = System.currentTimeMillis()
                 )
-            }
+            )
+            notWornStable = true
         }
     }
 
-    /** ===== Parser dengan RR count =====
-     * Flags spec 0x2A37:
-     * bit0: HR 16-bit present
-     * bit1: Sensor Contact Supported
-     * bit2: Sensor Contact Detected
-     * bit3: Energy Expended Present (skip)
-     * bit4: RR-Interval Present
-     */
+    /** ===== Parser dengan RR count ===== */
     private data class HrParsed(
         val bpm: Int,
         val isWorn: Boolean,
@@ -377,7 +486,6 @@ class HeartRateRepository(private val context: Context) {
 
         var rrCount = 0
         if (rrPresent) {
-            // RR interval adalah array uint16 LE, tiap 1/1024 detik
             while (offset + 1 < data.size) {
                 rrCount += 1
                 offset += 2

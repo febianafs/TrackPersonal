@@ -82,6 +82,7 @@ class MainActivity : AppCompatActivity() {
         ViewModelProvider.AndroidViewModelFactory.getInstance(application)
     }
 
+    //heart rate
     private val heartRateVM: HeartRateViewModel by viewModels {
         ViewModelProvider.AndroidViewModelFactory.getInstance(application)
     }
@@ -275,7 +276,6 @@ class MainActivity : AppCompatActivity() {
     override fun onStop() {
         super.onStop()
         locationVM.stop()
-        heartRateVM.stop()
         if (sosActive) stopSosBlink()
     }
 
