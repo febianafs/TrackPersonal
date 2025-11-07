@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/setting"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    style="@style/ScreenBackground"
+    tools:context=".ui.setting.SettingActivity">
+
+    <!-- Toolbar -->
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="0dp"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/deep_blue"
+        app:navigationIcon="@drawable/ic_arrow_back"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <TextView
+            android:id="@+id/tvCenterTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="Setting"
+            android:textStyle="bold"
+            android:textColor="@color/primary_cyan"/>
+    </com.google.android.material.appbar.MaterialToolbar>
+
+    <!-- Label Interval -->
+    <TextView
+        android:id="@+id/tvIntervalLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Data Transmission Interval"
+        android:textSize="13sp"
+        style="@style/TextColor"
+        android:textStyle="bold"
+        app:layout_constraintTop_toBottomOf="@id/toolbar"
+        app:layout_constraintStart_toStartOf="parent"
+        android:layout_marginTop="24dp"
+        android:layout_marginStart="@dimen/screen_padding"/>
+
+    <!-- Dropdown Interval -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/tilInterval"
+        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/screen_padding"
+        android:layout_marginEnd="@dimen/screen_padding"
+        android:layout_marginTop="10dp"
+        app:boxBackgroundMode="outline"
+        app:endIconMode="dropdown_menu"
+        app:boxStrokeColor="@color/primary_cyan"
+        app:hintTextColor="@color/primary_cyan"
+        app:layout_constraintTop_toBottomOf="@id/tvIntervalLabel"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <com.google.android.material.textfield.MaterialAutoCompleteTextView
+            android:id="@+id/actInterval"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Select Interval"
+            android:importantForAutofill="no"
+            android:inputType="none"
+            android:minHeight="56dp"
+            android:paddingStart="5dp"
+            android:textColorHint="#A0AFC6"
+            android:textSize="12dp"
+            tools:ignore="SpeakableTextPresentCheck" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

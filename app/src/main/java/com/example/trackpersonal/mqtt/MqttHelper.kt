@@ -40,7 +40,7 @@ class MqttHelper(
         val qos: MqttQos,
         val retain: Boolean
     )
-    private val MAX_QUEUE = 500  // <-- Step 7: batasi antrian agar tidak membengkak
+    private val MAX_QUEUE = 500
 
     // ===== Ambil IMEI / ANDROID_ID aman =====
     @SuppressLint("MissingPermission", "HardwareIds")
@@ -81,7 +81,7 @@ class MqttHelper(
         .serverHost("147.139.161.159")
         .serverPort(9001) // WebSocket
         .webSocketConfig(MqttWebSocketConfig.builder().build())
-        .automaticReconnectWithDefaultConfig() // auto-reconnect
+        .automaticReconnectWithDefaultConfig()
         .buildAsync()
 
     // ===== CONNECT (debounced) =====
@@ -100,7 +100,7 @@ class MqttHelper(
         Log.d(TAG, "🔄 Connecting ke MQTT broker...")
 
         val connectMsg = Mqtt3Connect.builder()
-            .keepAlive(20) // lebih sering ping → tahan putus
+            .keepAlive(20)
             .simpleAuth().username("kodam").password("kodam2025".toByteArray()).applySimpleAuth()
             .cleanSession(true)
             .build()
@@ -162,13 +162,12 @@ class MqttHelper(
                 }
         } else {
             Log.w(TAG, "⚠️ Belum connect. Queue & reconnect… topic=$topic")
-            // ==== Step 7: drop-oldest jika queue penuh ====
             if (sendQueue.size >= MAX_QUEUE) {
                 val dropped = sendQueue.poll()
                 Log.w(TAG, "🗑️ Queue full ($MAX_QUEUE). Dropping oldest → ${dropped?.topic}")
             }
             sendQueue.offer(QueuedMsg(topic, bytes, qos, retain))
-            connect() // aman (debounced)
+            connect()
         }
     }
 
@@ -190,7 +189,8 @@ class MqttHelper(
         batteryLevel: Int,
         timestamp: Long
     ) {
-        val topic = "radio/data" // tetap single topic (tanpa /#)
+        // 🔁 GANTI TOPIK DI SINI
+        val topic = "kdm/radio/data"
         val payload = JSONObject().apply {
             put("timestamp", timestamp)
             put("serial_number", serialNumber)
@@ -229,7 +229,8 @@ class MqttHelper(
         lng: Double,
         timestamp: Long
     ) {
-        val topic = "radio/sos"
+        // 🔁 GANTI TOPIK DI SINI
+        val topic = "kdm/radio/sos"
         val payload = JSONObject().apply {
             put("timestamp", timestamp)
             put("serial_number", serialNumber)
@@ -240,7 +241,7 @@ class MqttHelper(
             put("latitude", lat)
             put("longitude", lng)
         }
-        // retained → state terakhir terbaca subscriber baru
+        // retained tetap true agar state SOS terakhir terbaca subscriber baru
         offerOrSend(topic, payload, MqttQos.EXACTLY_ONCE, retain = true)
     }
 

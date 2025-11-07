@@ -25,17 +25,40 @@ class AuthRepository(private val securePref: SecurePref) {
         }
     }
 
+    // AuthRepository.kt
     suspend fun logout(): Resource<LogoutResponse> {
         return try {
-            val response: Response<LogoutResponse> = api.logout()
+            val response = api.logout()
             if (response.isSuccessful && response.body() != null) {
                 Resource.Success(response.body()!!)
+            } else if (response.code() == 401) {
+                // token expired → treat as logged out
+                Resource.Success(
+                    LogoutResponse(
+                        success = true,
+                        message = "Token expired; treated as logged out",
+                        status_code = 200,
+                        status_message = "OK"
+                    )
+                )
             } else {
                 val msg = response.errorBody()?.string().orEmpty().ifBlank { response.message() }
                 Resource.Error("Logout gagal: ${response.code()} - $msg")
             }
         } catch (e: Exception) {
-            Resource.Error(e.message ?: "Terjadi kesalahan saat logout")
+            val t = e.message?.lowercase().orEmpty()
+            if (t.contains("401") || t.contains("unauthorized") || t.contains("expired")) {
+                Resource.Success(
+                    LogoutResponse(
+                        success = true,
+                        message = "Logout Berhasil", //awalnya Token expired; treated as logged out
+                        status_code = 200,
+                        status_message = "OK"
+                    )
+                )
+            } else {
+                Resource.Error(e.message ?: "Terjadi kesalahan saat logout")
+            }
         }
     }
 }

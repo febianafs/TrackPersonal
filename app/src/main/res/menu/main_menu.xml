@@ -2,8 +2,13 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
         android:id="@+id/action_about"
-        android:title="About"
-        android:background="@color/deep_blue"/>
+        android:title="About" />
+    <item
+        android:id="@+id/action_cam"
+        android:title="Body Cam" />
+    <item
+        android:id="@+id/action_setting"
+        android:title="Setting" />
     <item
         android:id="@+id/action_logout"
         android:title="Logout" />
