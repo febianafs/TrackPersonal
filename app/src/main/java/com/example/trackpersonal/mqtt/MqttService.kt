@@ -12,7 +12,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.ContextCompat.registerReceiver
 import com.example.trackpersonal.R
-import com.example.trackpersonal.heart.HeartRateRepository
+import com.example.trackpersonal.heart.HeartRateRepoProvider
 import com.example.trackpersonal.utils.SecurePref
 import com.google.android.gms.location.*
 import kotlinx.coroutines.*
@@ -29,7 +29,7 @@ class MqttService : Service() {
         private const val ACTION_SOS   = "MQTT_SOS"
         private const val EXTRA_SOS_ACTIVE = "sos_active"
 
-        // Broadcast internal untuk ubah interval (fully-qualified)
+        // Internal broadcast for interval changes (fully-qualified)
         const val ACTION_INTERVAL_CHANGED = "com.example.trackpersonal.MQTT_INTERVAL_CHANGED"
 
         fun start(context: Context) {
@@ -54,11 +54,11 @@ class MqttService : Service() {
     private lateinit var fused: FusedLocationProviderClient
     private val mqtt: MqttHelper by lazy { MqttHelper(this) { /* optional */ } }
 
-    // 👇 tambahkan ini
-    private val heartRepo by lazy { HeartRateRepository(this) }
+    // Use the same repo singleton as the UI
+    private val heartRepo by lazy { HeartRateRepoProvider.get(this) }
     private var heartJob: Job? = null
 
-    // lokasi terakhir
+    // Last known location
     private var lastKnown: Location? = null
 
     // HR + Battery realtime
@@ -66,19 +66,27 @@ class MqttService : Service() {
     private var latestHeartTs: Long = 0
     private var latestBatteryPercent: Int = 0
 
-    // loop periodik (dibaca dari SecurePref)
+    // HR connection status for notification
+    private var hrConnected: Boolean = false
+    private var hrDeviceName: String? = null
+    private var hrDeviceAddress: String? = null
+
+    // Base MQTT text that will be combined with HR status
+    private var baseNotifText: String = "Connecting…"
+
+    // Periodic loop (read from SecurePref)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val running = AtomicBoolean(false)
     private var tickerJob: Job? = null
     private var periodMs: Long = 10_000L
 
-    // network callback
+    // Network callback
     private var netCallback: ConnectivityManager.NetworkCallback? = null
 
-    // WiFiLock agar Wi-Fi tidak tidur
+    // WiFiLock to keep Wi-Fi awake
     private var wifiLock: WifiManager.WifiLock? = null
 
-    // battery receiver (sticky)
+    // Battery receiver (sticky)
     private val batteryReceiver = object : BroadcastReceiver() {
         override fun onReceive(ctx: Context?, intent: Intent?) {
             if (intent == null) return
@@ -90,7 +98,7 @@ class MqttService : Service() {
         }
     }
 
-    // receiver untuk perubahan interval
+    // Receiver for interval changes
     private val intervalReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action != ACTION_INTERVAL_CHANGED) return
@@ -125,12 +133,14 @@ class MqttService : Service() {
 
         pref = SecurePref(this)
         createNotifChannel()
-        startForeground(NOTIF_ID, buildNotif("Connecting…"))
 
-        // Ambil WiFiLock → cegah Wi-Fi tidur saat screen off
+        baseNotifText = "Connecting…"
+        startForeground(NOTIF_ID, buildNotif())
+
+        // Acquire WiFiLock → keep Wi-Fi on while screen is off
         acquireWifiLock()
 
-        // ====== DAFTARKAN RECEIVER DENGAN ANDROIDX ======
+        // ====== Register receivers via AndroidX ======
         // battery realtime (system broadcast → EXPORTED)
         val batteryFilter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
         registerReceiver(
@@ -140,7 +150,7 @@ class MqttService : Service() {
             /* flags = */ ContextCompat.RECEIVER_EXPORTED
         )
 
-        // listen perubahan interval (broadcast internal → NOT_EXPORTED)
+        // listen interval changes (internal broadcast → NOT_EXPORTED)
         val intervalFilter = IntentFilter(ACTION_INTERVAL_CHANGED)
         registerReceiver(
             /* context = */ this,
@@ -156,20 +166,40 @@ class MqttService : Service() {
         registerNetworkCallback()
         mqtt.connect() // soft ensure
 
-        // Baca interval awal dari pref
+        // Initial interval from pref
         periodMs = readPeriodFromPref()
         updateNotif("Sending every ${periodMs / 1000}s…")
 
-        // 👇 START heart rate repo di background service ini
+        // Start heart rate repo in this background service
         heartRepo.start()
 
-        // 👇 Collect HR state di scope service (jalan terus walaupun layar mati)
+        // Collect HR state in service scope (keeps running with screen off)
         heartJob = scope.launch {
             heartRepo.state.collect { st ->
                 latestHeartRate = st.bpm
-                latestHeartTs = st.lastUpdatedMillis   // ini masih millis, dipakai di MQTT
+                latestHeartTs = st.lastUpdatedMillis   // millis, used in MQTT
 
-                // optional: simpan ke SecurePref sebagai backup (dalam satuan detik)
+                // Save connection & device status
+                val prevConnected = hrConnected
+                val prevName = hrDeviceName
+                val prevAddr = hrDeviceAddress
+
+                hrConnected = st.connected
+                hrDeviceName = st.deviceName
+                hrDeviceAddress = st.deviceAddress
+
+                // If connection/device changed → update notif
+                if (prevConnected != hrConnected ||
+                    prevName != hrDeviceName ||
+                    prevAddr != hrDeviceAddress
+                ) {
+                    try {
+                        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                        nm.notify(NOTIF_ID, buildNotif())
+                    } catch (_: Exception) { }
+                }
+
+                // Optional: save to SecurePref as backup (seconds)
                 try {
                     pref.saveHeartRate(
                         bpm = st.bpm,
@@ -178,7 +208,6 @@ class MqttService : Service() {
                 } catch (_: Exception) { }
             }
         }
-
 
         startTicker()
     }
@@ -214,8 +243,7 @@ class MqttService : Service() {
         if (tickerJob?.isActive == true) return
         tickerJob = scope.launch {
             while (isActive) {
-                try { mqtt.connect() } catch (_: Exception) {} // debounced di helper
-                //refreshLatestHeartFromPref()
+                try { mqtt.connect() } catch (_: Exception) {} // debounced in helper
                 sendRadioDataOnce()
                 delay(periodMs)
             }
@@ -258,7 +286,10 @@ class MqttService : Service() {
 
     private fun sendRadioDataOnce() {
         val loc = lastKnown ?: run {
-            Log.w("MQTT-HiveMQ", "⚠️ lastKnown null → kirim (0,0). Cek izin background/precise & GPS.")
+            Log.w(
+                "MQTT-HiveMQ",
+                "⚠️ lastKnown null → sending (0,0). Check background/precise location permission and GPS."
+            )
             Location("placeholder").apply {
                 latitude = 0.0
                 longitude = 0.0
@@ -296,7 +327,7 @@ class MqttService : Service() {
         updateNotif("Sending every ${periodMs / 1000}s…")
     }
 
-    // ===== lokasi background =====
+    // ===== Background location =====
     private fun startLocationUpdates() {
         val fine = ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) ==
                 android.content.pm.PackageManager.PERMISSION_GRANTED
@@ -320,7 +351,7 @@ class MqttService : Service() {
         }
     }
 
-    // ===== pantau jaringan =====
+    // ===== Network monitor =====
     private fun registerNetworkCallback() {
         val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val req = NetworkRequest.Builder()
@@ -343,20 +374,44 @@ class MqttService : Service() {
         netCallback = null
     }
 
-    // ===== Notif =====
-    private fun buildNotif(text: String): Notification {
+    // ===== Notification MQTT + Garmin status =====
+    private fun buildNotif(): Notification {
+        val nmText = composeNotifText()
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_logo_kodamjaya)
             .setContentTitle("Radio Tracking")
-            .setContentText(text)
+            .setContentText(nmText)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(nmText))
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
     }
 
+    // Combine MQTT text + HR status
+    private fun composeNotifText(): String {
+        val base = baseNotifText
+
+        val hrPart = if (hrConnected) {
+            val name = hrDeviceName ?: "Heart rate connected"
+            val addr = hrDeviceAddress
+            if (addr != null) {
+                "HR: $name ($addr)"
+            } else {
+                "HR: $name"
+            }
+        } else {
+            "HR: Not connected"
+        }
+
+        // Example:
+        // "Sending every 10s… • HR: Forerunner 55 (EB:B0:AC:D8:A4:CF)"
+        return "$base • $hrPart"
+    }
+
     private fun updateNotif(text: String) {
+        baseNotifText = text
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        nm.notify(NOTIF_ID, buildNotif(text))
+        nm.notify(NOTIF_ID, buildNotif())
     }
 
     private fun createNotifChannel() {
@@ -372,7 +427,7 @@ class MqttService : Service() {
         pref.getHeartRateTs()?.let { latestHeartTs = it }
     }
 
-    // === Self-heal kalau task di-swipe dari recent apps / proses di-kill ringan ===
+    // === Self-heal when task is swiped from recents / light kill ===
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
         val i = Intent(applicationContext, MqttService::class.java).setAction(ACTION_START)
@@ -397,7 +452,7 @@ class MqttService : Service() {
         releaseWifiLock()
         try { mqtt.disconnect() } catch (_: Exception) {}
 
-        // 👇 stop heart repo & job
+        // stop heart repo & job
         try { heartRepo.stop() } catch (_: Exception) {}
         heartJob?.cancel()
         heartJob = null

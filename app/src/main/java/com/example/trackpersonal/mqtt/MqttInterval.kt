@@ -5,13 +5,13 @@ object MqttInterval {
     private val OPTIONS_SECONDS = listOf(10, 50, 60, 120, 180, 240, 300)
 
     fun labels(): List<String> = listOf(
-        "10 detik",
-        "50 detik",
-        "1 menit",
-        "2 menit",
-        "3 menit",
-        "4 menit",
-        "5 menit"
+        "10 seconds",
+        "50 seconds",
+        "1 minute",
+        "2 minute",
+        "3 minute",
+        "4 minute",
+        "5 minute"
     )
 
     fun allSeconds(): List<Int> = OPTIONS_SECONDS

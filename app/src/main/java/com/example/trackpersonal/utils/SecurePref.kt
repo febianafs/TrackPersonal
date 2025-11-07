@@ -56,6 +56,9 @@ class SecurePref(context: Context) {
         private const val KEY_HEART_BPM = "heart_bpm"
         private const val KEY_HEART_TS  = "heart_ts"
 
+        // +++ tambahkan ini untuk lock 1 poc = 1 garmin
+        private const val KEY_HR_DEVICE_ADDR = "hr_device_addr"
+
         // MQTT Interval (per-user) -> simpan per userKey
         private const val KEY_MQTT_INTERVAL_PREFIX = "mqtt_interval_s_"
     }
@@ -191,6 +194,12 @@ class SecurePref(context: Context) {
         if (sharedPref.contains(KEY_HEART_BPM)) sharedPref.getInt(KEY_HEART_BPM, 0) else null
     fun getHeartRateTs(): Long? =
         if (sharedPref.contains(KEY_HEART_TS)) sharedPref.getLong(KEY_HEART_TS, 0L) else null
+
+    // +++ TAMBAHKAN INI untuk lock hanya 1 garmin yang pertama yg connect
+    fun saveHrDeviceAddress(addr: String?) {
+        sharedPref.edit().putString(KEY_HR_DEVICE_ADDR, addr).apply()
+    }
+    fun getHrDeviceAddress(): String? = getString(KEY_HR_DEVICE_ADDR)
 
     // ---------- MQTT INTERVAL (per-user) ----------
     private fun keyIntervalFor(userKey: String) = "$KEY_MQTT_INTERVAL_PREFIX$userKey"

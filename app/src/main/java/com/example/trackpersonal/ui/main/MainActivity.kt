@@ -59,6 +59,8 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var securePref: SecurePref
+    //buat nyimpen alamat garmin terakhir yang nyangkut di poc
+    private var lastHrDeviceShown: String? = null
 
     private val viewModel: MainViewModel by viewModels {
         object : ViewModelProvider.Factory {
@@ -125,6 +127,7 @@ class MainActivity : AppCompatActivity() {
         val grantedConn = result[Manifest.permission.BLUETOOTH_CONNECT] == true
         if (grantedScan && grantedConn) heartRateVM.start()
         else {
+            //Satu-satunya tempat heartRateVM.stop() dipanggil adalah di BLE permission gagal
             heartRateVM.stop()
             binding.tvHeartPersonel.text = "0 bpm"
             binding.tvHeartPersonel.setTextColor(ContextCompat.getColor(this, android.R.color.darker_gray))
@@ -522,12 +525,30 @@ class MainActivity : AppCompatActivity() {
         }
     }
     private fun renderHeart(s: HeartRateState) {
+        // kalau putus (connected=false) → reset flag notif
+        if (!s.connected) {
+            lastHrDeviceShown = null
+        }
+
         val text = "${s.bpm} bpm"
         binding.tvHeartPersonel.text = text
         val color = if (s.isWorn) android.R.color.white else android.R.color.darker_gray
         binding.tvHeartPersonel.setTextColor(ContextCompat.getColor(this, color))
 
-        // ✅ Share HR ke Service
+        val currentDeviceKey = listOfNotNull(s.deviceName, s.deviceAddress).joinToString(" @ ")
+
+        if (!currentDeviceKey.isNullOrBlank() && currentDeviceKey != lastHrDeviceShown) {
+            lastHrDeviceShown = currentDeviceKey
+            val label = if (s.deviceName != null && s.deviceAddress != null) {
+                "HR terhubung ke ${s.deviceName} (${s.deviceAddress})"
+            } else if (s.deviceAddress != null) {
+                "HR terhubung ke ${s.deviceAddress}"
+            } else {
+                "HR device terhubung"
+            }
+            android.widget.Toast.makeText(this, label, android.widget.Toast.LENGTH_LONG).show()
+        }
+
         securePref.saveHeartRate(s.bpm, System.currentTimeMillis() / 1000L)
     }
 
