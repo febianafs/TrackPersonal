@@ -30,7 +30,7 @@ class SecurePref(context: Context) {
         private const val KEY_PROFILE_ID = "profile_id"
         private const val KEY_NRP = "user_nrp"
 
-        // MQTT per-install instance (optional, kalau nanti mau dipakai)
+        // MQTT per-install instance (optional)
         private const val KEY_CLIENT_INSTANCE_ID = "client_instance_id"
 
         // Unit Info
@@ -55,6 +55,15 @@ class SecurePref(context: Context) {
         // Heart rate (Activity -> Service)
         private const val KEY_HEART_BPM = "heart_bpm"
         private const val KEY_HEART_TS  = "heart_ts"
+
+        // Lock 1 poc = 1 Garmin
+        private const val KEY_HR_DEVICE_ADDR = "hr_device_addr"
+
+        // MQTT Interval (per-user) -> simpan per userKey
+        private const val KEY_MQTT_INTERVAL_PREFIX = "mqtt_interval_s_"
+
+        // SOS status
+        private const val KEY_SOS_ACTIVE = "sos_active"
     }
 
     private val sharedPref: SharedPreferences by lazy {
@@ -75,11 +84,13 @@ class SecurePref(context: Context) {
     private fun putString(key: String, value: String?) {
         sharedPref.edit().putString(key, value).apply()
     }
+
     private fun getString(key: String): String? = sharedPref.getString(key, null)
 
     private fun putLong(key: String, value: Long?) {
         sharedPref.edit().putLong(key, value ?: -1L).apply()
     }
+
     private fun getLongOrNull(key: String): Long? {
         val v = sharedPref.getLong(key, -1L)
         return if (v == -1L) null else v
@@ -92,6 +103,7 @@ class SecurePref(context: Context) {
             .putString(KEY_NAME, name)
             .apply()
     }
+
     fun getToken(): String? = getString(KEY_TOKEN)
     fun getName(): String? = getString(KEY_NAME)
 
@@ -109,6 +121,7 @@ class SecurePref(context: Context) {
         putLong(KEY_CLIENT_ID, clientId)
         putLong(KEY_PROFILE_ID, profileId)
     }
+
     fun getUserId(): Long? = getLongOrNull(KEY_USER_ID)
     fun getClientId(): Long? = getLongOrNull(KEY_CLIENT_ID)
     fun getProfileId(): Long? = getLongOrNull(KEY_PROFILE_ID)
@@ -122,6 +135,7 @@ class SecurePref(context: Context) {
         putString(KEY_ROLE, role)
         putString(KEY_AVATAR_URL, avatarUrl)
     }
+
     fun getFullName(): String? = getString(KEY_FULL_NAME)
     fun getUsername(): String? = getString(KEY_USERNAME)
     fun getRole(): String? = getString(KEY_ROLE)
@@ -144,6 +158,7 @@ class SecurePref(context: Context) {
         putString(KEY_RANK, rank)
         putString(KEY_REGU, regu)
     }
+
     fun getSatuan(): String? = getString(KEY_SATUAN)
     fun getBatalyon(): String? = getString(KEY_BATALYON)
     fun getRank(): String? = getString(KEY_RANK)
@@ -157,6 +172,7 @@ class SecurePref(context: Context) {
         putString(KEY_ABOUT_DEV, data?.dev)
         putString(KEY_ABOUT_VIDEO, data?.videoUrl)
     }
+
     fun getAboutContent() = getString(KEY_ABOUT_CONTENT)
     fun getAboutImageUrl() = getString(KEY_ABOUT_IMAGE)
     fun getAboutVersion() = getString(KEY_ABOUT_VERSION)
@@ -173,6 +189,7 @@ class SecurePref(context: Context) {
         putString(KEY_SETTING_LOGO, logo)
         putString(KEY_SETTING_DESC, desc)
     }
+
     fun getSettingTitle(): String? = getString(KEY_SETTING_TITLE)
     fun getSettingLogo(): String? = getString(KEY_SETTING_LOGO)
     fun getSettingDesc(): String? = getString(KEY_SETTING_DESC)
@@ -184,13 +201,90 @@ class SecurePref(context: Context) {
             .putLong(KEY_HEART_TS, tsSec ?: 0L)
             .apply()
     }
+
     fun getHeartRateBpm(): Int? =
         if (sharedPref.contains(KEY_HEART_BPM)) sharedPref.getInt(KEY_HEART_BPM, 0) else null
+
     fun getHeartRateTs(): Long? =
         if (sharedPref.contains(KEY_HEART_TS)) sharedPref.getLong(KEY_HEART_TS, 0L) else null
 
-    // ---------- CLEAR ALL ----------
+    // Lock hanya 1 Garmin (alamat pertama yang connect)
+    fun saveHrDeviceAddress(addr: String?) {
+        sharedPref.edit().putString(KEY_HR_DEVICE_ADDR, addr).apply()
+    }
+
+    fun getHrDeviceAddress(): String? = getString(KEY_HR_DEVICE_ADDR)
+
+    // ---------- MQTT INTERVAL (per-user) ----------
+    private fun keyIntervalFor(userKey: String) = "$KEY_MQTT_INTERVAL_PREFIX$userKey"
+
+    fun saveMqttIntervalSecondsForUser(userKey: String, seconds: Int) {
+        sharedPref.edit().putInt(keyIntervalFor(userKey), seconds).apply()
+    }
+
+    fun getMqttIntervalSecondsForUser(userKey: String, defaultSeconds: Int = 10): Int {
+        return sharedPref.getInt(keyIntervalFor(userKey), defaultSeconds)
+    }
+
+    // ---------- SOS STATE ----------
+    fun saveSosActive(active: Boolean) {
+        sharedPref.edit()
+            .putBoolean(KEY_SOS_ACTIVE, active)
+            .apply()
+    }
+
+    fun isSosActive(): Boolean {
+        return sharedPref.getBoolean(KEY_SOS_ACTIVE, false)
+    }
+
+    /**
+     * Tentukan userKey unik untuk pemetaan per-user.
+     * Prioritas: userId -> username -> nrp -> "default"
+     */
+    fun getCurrentUserKey(): String {
+        getUserId()?.let { return "uid_$it" }
+        getUsername()?.takeIf { it.isNotBlank() }?.let { return "u_$it" }
+        getNrp()?.takeIf { it.isNotBlank() }?.let { return "nrp_$it" }
+        return "default"
+    }
+
+    // optional listener
+    fun registerOnChangeListener(l: SharedPreferences.OnSharedPreferenceChangeListener) {
+        sharedPref.registerOnSharedPreferenceChangeListener(l)
+    }
+
+    fun unregisterOnChangeListener(l: SharedPreferences.OnSharedPreferenceChangeListener) {
+        sharedPref.unregisterOnSharedPreferenceChangeListener(l)
+    }
+
+    // ---------- CLEAR ----------
     fun clear() {
         sharedPref.edit().clear().apply()
+    }
+
+    /**
+     * Hapus semua data KECUALI entri interval per-user (key yang diawali mqtt_interval_s_).
+     * Dipakai saat logout agar setting interval tiap user tetap tersimpan.
+     */
+    fun clearButKeepIntervals() {
+        // simpan semua pasangan kunci-nilai interval
+        val all = sharedPref.all
+        val toKeep = all.filterKeys { it.startsWith(KEY_MQTT_INTERVAL_PREFIX) }
+
+        // clear semua
+        sharedPref.edit().clear().apply()
+
+        // restore yang disimpan
+        val e = sharedPref.edit()
+        for ((k, v) in toKeep) {
+            when (v) {
+                is Int -> e.putInt(k, v)
+                is Long -> e.putLong(k, v)
+                is String -> e.putString(k, v)
+                is Boolean -> e.putBoolean(k, v)
+                is Float -> e.putFloat(k, v)
+            }
+        }
+        e.apply()
     }
 }

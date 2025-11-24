@@ -1,0 +1,5 @@
+<resources>
+    <dimen name="map_height">480dp</dimen>
+    <!-- opsional: override padding khusus landscape -->
+    <dimen name="screen_padding">24dp</dimen>
+</resources>

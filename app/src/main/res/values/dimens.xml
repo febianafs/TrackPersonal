@@ -1,4 +1,7 @@
 <resources>
     <!-- padding global biar konsisten -->
     <dimen name="screen_padding">30dp</dimen>
+
+    <!-- tinggi peta default -->
+    <dimen name="map_height">350dp</dimen>
 </resources>

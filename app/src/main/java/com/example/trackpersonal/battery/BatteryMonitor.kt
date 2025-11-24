@@ -32,15 +32,18 @@ class BatteryMonitor(private val appContext: Context) {
     }
 
     private fun parseFromIntent(context: Context, intent: Intent?): BatteryState {
-        // 1) coba pakai BatteryManager (lebih langsung, kadang device OEM override)
-        val bm = context.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
-        var percent = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
-        if (percent <= 0 || percent > 100) {
-            // 2) fallback dari EXTRA_LEVEL/EXTRA_SCALE
-            val level = intent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
-            val scale = intent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
-            percent = if (level >= 0 && scale > 0) (level * 100f / scale).toInt() else -1
-        }
+        val level = intent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+        val scale = intent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+
+        val percent =
+            if (level >= 0 && scale > 0) {
+                // pakai pembulatan normal biar lebih halus
+                ((level * 100f / scale) + 0.5f).toInt()
+            } else {
+                // fallback terakhir: coba BATTERY_PROPERTY_CAPACITY, kalau tetap aneh -> 0
+                val bm = context.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
+                bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY).coerceIn(0, 100)
+            }
 
         val status = intent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
         val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||

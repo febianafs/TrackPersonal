@@ -1,9 +1,22 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
     <style name="Base.Theme.TrackPersonal" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your light theme here. -->
-        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+        <!-- Status bar color -->
+        <item name="android:statusBarColor">@color/deep_blue_900</item>
+        <!-- primary brand color -->
+         <item name="colorPrimary">@color/primary_cyan</item>
+        <item name="colorPrimaryVariant">@color/primary_cyan</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <!-- Secondary brand color -->
+        <item name="colorSecondary">@color/deep_blue_700</item>
+        <item name="colorSecondaryVariant">@color/deep_blue_900</item>
+        <item name="colorOnSecondary">@color/black</item>
     </style>
 
     <style name="Theme.TrackPersonal" parent="Base.Theme.TrackPersonal" />
+
+    <style name="ScreenBackground"><item name="android:background">@color/white</item></style>
+    <style name="CardBackground"><item name="android:background">@color/deep_blue</item></style>
+    <style name="TextColor"><item name="android:textColor">@color/primary_cyan</item></style>
+<!--    <style name="ImageChange"><item name="android:src">@color/deep_blue_900</item></style>-->
 </resources>
