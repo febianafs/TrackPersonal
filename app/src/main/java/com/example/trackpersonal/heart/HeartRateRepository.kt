@@ -14,7 +14,10 @@ import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.ParcelUuid
@@ -36,14 +39,18 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 
+@SuppressLint("MissingPermission")
 class HeartRateRepository(private val context: Context) {
 
     companion object {
         private const val TAG = "HeartRepo"
 
-        val UUID_HR_SERVICE: UUID = UUID.fromString("0000180D-0000-1000-8000-00805f9b34fb")
-        val UUID_HR_MEASUREMENT: UUID = UUID.fromString("00002A37-0000-1000-8000-00805f9b34fb")
-        val UUID_CLIENT_CHAR_CONFIG: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
+        val UUID_HR_SERVICE: UUID =
+            UUID.fromString("0000180D-0000-1000-8000-00805f9b34fb")
+        val UUID_HR_MEASUREMENT: UUID =
+            UUID.fromString("00002A37-0000-1000-8000-00805f9b34fb")
+        val UUID_CLIENT_CHAR_CONFIG: UUID =
+            UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
 
         // Tuning
         private const val STALE_TIMEOUT_MS = 4_000L          // no packets -> 0 bpm
@@ -62,17 +69,22 @@ class HeartRateRepository(private val context: Context) {
 
         // deteksi pemakaian ulang (rewear) berdasarkan jarak antar paket
         private const val REWEAR_MAX_INTERVAL_MS = 1_500L    // paket dianggap "cepat" < 1.5s
-        private const val REWEAR_CONSEC_REQUIRED = 3         // butuh 3 paket cepat berturut-turut
+        private const val REWEAR_CONSEC_REQUIRED = 2         // butuh 2 paket cepat berturut-turut
 
         // delay sebelum auto-scan lagi setelah disconnect
         private const val RECONNECT_DELAY_MS = 3_000L
+
+        // paksa emit minimal setiap ini ms (walau bpm & worn sama)
+        private const val FORCE_EMIT_EVERY_MS = 3_000L
     }
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val _state = MutableStateFlow(HeartRateState())
     val state: StateFlow<HeartRateState> = _state
 
-    private val btMgr by lazy { context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager }
+    private val btMgr by lazy {
+        context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+    }
     private val btAdapter: BluetoothAdapter? get() = btMgr.adapter
 
     // 🔐 pref untuk lock Garmin
@@ -94,10 +106,12 @@ class HeartRateRepository(private val context: Context) {
     // De-dup emisi ke UI
     private var lastEmittedBpm = -1
     private var lastEmittedWorn = false
+    private var lastEmitMs: Long = 0L
 
     // Variance window
     private data class Sample(val t: Long, val bpm: Int, val rrCount: Int)
-    private val samples = ArrayDeque<Sample>()  // keep last ≤ VAR_WINDOW_MS
+    private val samples = ArrayDeque<Sample>()
+    private val samplesLock = Any()
 
     // smoothing
     private var hrFiltered: Double? = null
@@ -116,6 +130,15 @@ class HeartRateRepository(private val context: Context) {
     // menandai apakah stop() dipanggil user (bukan disconnect karena jarak)
     private var userStopped: Boolean = false
 
+    // reconnect + notif watchdog
+    private var reconnectAttempt = 0
+    private var lastHrEventMs = 0L
+    private var notifEnableAttempts = 0
+
+    // receiver flags
+    private var adapterRcvrRegistered = false
+    private var bondRcvrRegistered = false
+
     private fun resetGates() {
         notificationsReady = false
         consecWearPackets = 0
@@ -123,6 +146,7 @@ class HeartRateRepository(private val context: Context) {
         notifyEnabledAt = 0L
         lastEmittedBpm = -1
         lastEmittedWorn = false
+        lastEmitMs = 0L
         samples.clear()
         hrFiltered = null
         lastUpdateMs = 0L
@@ -130,6 +154,8 @@ class HeartRateRepository(private val context: Context) {
         notWornStable = false
         lastPacketMs = 0L
         reWearConsec = 0
+        lastHrEventMs = 0L
+        notifEnableAttempts = 0
     }
 
     /** ================= Public API ================= */
@@ -137,6 +163,8 @@ class HeartRateRepository(private val context: Context) {
     @SuppressLint("MissingPermission")
     fun start() {
         Log.d(TAG, "start() called. lockedAddress = $lockedAddress")
+        ensureReceiversRegistered()
+
         if (!hasBlePermissions()) {
             Log.w(TAG, "start() aborted: no BLE permission")
             _state.tryEmit(HeartRateState(connected = false, bpm = 0, isWorn = false))
@@ -158,7 +186,8 @@ class HeartRateRepository(private val context: Context) {
         try {
             gatt?.disconnect()
             gatt?.close()
-        } catch (_: SecurityException) { }
+        } catch (_: SecurityException) {
+        }
         gatt = null
         resetGates()
         _state.tryEmit(HeartRateState(connected = false, bpm = 0, isWorn = false))
@@ -168,16 +197,96 @@ class HeartRateRepository(private val context: Context) {
 
     private fun hasBlePermissions(): Boolean {
         val scanOk = if (Build.VERSION.SDK_INT >= 31)
-            ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED else true
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.BLUETOOTH_SCAN
+            ) == PackageManager.PERMISSION_GRANTED else true
         val connectOk = if (Build.VERSION.SDK_INT >= 31)
-            ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED else true
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.BLUETOOTH_CONNECT
+            ) == PackageManager.PERMISSION_GRANTED else true
         val locationOk = if (Build.VERSION.SDK_INT < 31)
-            (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-                    || ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED)
+            (ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+                    || ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED)
         else true
         val ok = scanOk && connectOk && locationOk
-        if (!ok) Log.w(TAG, "hasBlePermissions() = false (scan=$scanOk, connect=$connectOk, loc=$locationOk)")
+        if (!ok) Log.w(
+            TAG,
+            "hasBlePermissions() = false (scan=$scanOk, connect=$connectOk, loc=$locationOk)"
+        )
         return ok
+    }
+
+    /** ================= Receivers ================= */
+
+    private val adapterRcvr = object : BroadcastReceiver() {
+        @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
+        override fun onReceive(ctx: Context, i: Intent) {
+            if (BluetoothAdapter.ACTION_STATE_CHANGED != i.action) return
+            val state = i.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1)
+            when (state) {
+                BluetoothAdapter.STATE_OFF -> {
+                    Log.w(TAG, "Bluetooth OFF → stop scan & reset")
+                    scanJob?.cancel(); scanJob = null
+                    try {
+                        gatt?.disconnect()
+                        gatt?.close()
+                    } catch (_: Exception) {
+                    }
+                    gatt = null
+                    resetGates()
+                }
+
+                BluetoothAdapter.STATE_ON -> {
+                    Log.d(TAG, "Bluetooth ON → trigger scan if needed")
+                    if (!userStopped) {
+                        scheduleReconnectBackoff()
+                    }
+                }
+            }
+        }
+    }
+
+    private val bondRcvr = object : BroadcastReceiver() {
+        @SuppressLint("MissingPermission")
+        override fun onReceive(ctx: Context, i: Intent) {
+            if (BluetoothDevice.ACTION_BOND_STATE_CHANGED != i.action) return
+            val dev: BluetoothDevice =
+                i.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE) ?: return
+            val state =
+                i.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_NONE)
+            if (gatt?.device?.address == dev.address && state == BluetoothDevice.BOND_BONDED) {
+                Log.d(TAG, "Bond completed for ${dev.address}, discoverServices()")
+                try {
+                    gatt?.discoverServices()
+                } catch (_: SecurityException) {
+                }
+            }
+        }
+    }
+
+    private fun ensureReceiversRegistered() {
+        if (!adapterRcvrRegistered) {
+            context.registerReceiver(
+                adapterRcvr,
+                IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
+            )
+            adapterRcvrRegistered = true
+        }
+        if (!bondRcvrRegistered) {
+            context.registerReceiver(
+                bondRcvr,
+                IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
+            )
+            bondRcvrRegistered = true
+        }
     }
 
     /** ================= Scan/connect/subscribe ================= */
@@ -194,20 +303,20 @@ class HeartRateRepository(private val context: Context) {
             return@withContext
         }
 
-        // 🔐 kalau sudah ada lockedAddress → scan khusus alamat itu saja
+        // Filter ganda: MAC (jika ada) + HR service
         val filters = mutableListOf<ScanFilter>()
-        if (lockedAddress != null) {
-            Log.d(TAG, "safeStartScan: scanning ONLY locked device $lockedAddress")
+
+        lockedAddress?.let {
+            Log.d(TAG, "safeStartScan: prefer locked device $it")
             filters += ScanFilter.Builder()
-                .setDeviceAddress(lockedAddress)
-                .build()
-        } else {
-            // belum ada binding → scan based on HR service (pairing pertama)
-            Log.d(TAG, "safeStartScan: no locked device, scan by HR service")
-            filters += ScanFilter.Builder()
-                .setServiceUuid(ParcelUuid(UUID_HR_SERVICE))
+                .setDeviceAddress(it)
                 .build()
         }
+
+        // Tambah filter HR service supaya iklan HR tetap tertangkap
+        filters += ScanFilter.Builder()
+            .setServiceUuid(ParcelUuid(UUID_HR_SERVICE))
+            .build()
 
         val settings = ScanSettings.Builder()
             .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
@@ -223,9 +332,12 @@ class HeartRateRepository(private val context: Context) {
                     "onScanResult: found ${dev.name ?: "?"} @ ${dev.address}, rssi=${result.rssi}"
                 )
 
-                // jika sudah locked → pastikan alamat sama
+                // Jika sudah locked → pastikan alamat sama
                 if (lockedAddress != null && dev.address != lockedAddress) {
-                    Log.d(TAG, "onScanResult: IGNORE device ${dev.address}, want locked=$lockedAddress")
+                    Log.d(
+                        TAG,
+                        "onScanResult: IGNORE device ${dev.address}, want locked=$lockedAddress"
+                    )
                     return
                 }
 
@@ -243,7 +355,10 @@ class HeartRateRepository(private val context: Context) {
                     val dev = res.device
                     lockedAddress == null || dev.address == lockedAddress
                 }?.device ?: run {
-                    Log.d(TAG, "onBatchScanResults: no matching device for locked=$lockedAddress")
+                    Log.d(
+                        TAG,
+                        "onBatchScanResults: no matching device for locked=$lockedAddress"
+                    )
                     return
                 }
 
@@ -257,7 +372,7 @@ class HeartRateRepository(private val context: Context) {
             }
         }
 
-        Log.d(TAG, "safeStartScan: startScan() called")
+        Log.d(TAG, "safeStartScan: startScan() called, filters=${filters.size}")
         @SuppressLint("MissingPermission")
         runCatching { scanner.startScan(filters, settings, cb) }
             .onFailure { Log.e(TAG, "startScan failed: ${it.message}", it) }
@@ -274,7 +389,12 @@ class HeartRateRepository(private val context: Context) {
         }
 
         Log.d(TAG, "connect(): connecting to ${device.address} (${device.name})")
-        _state.tryEmit(_state.value.copy(connected = false, deviceName = device.name))
+        _state.tryEmit(
+            _state.value.copy(
+                connected = false,
+                deviceName = device.name
+            )
+        )
         resetGates()
         try {
             gatt = if (Build.VERSION.SDK_INT >= 26)
@@ -290,13 +410,18 @@ class HeartRateRepository(private val context: Context) {
 
         @SuppressLint("MissingPermission")
         @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
-        override fun onConnectionStateChange(g: BluetoothGatt, status: Int, newState: Int) {
+        override fun onConnectionStateChange(
+            g: BluetoothGatt,
+            status: Int,
+            newState: Int
+        ) {
             Log.d(
                 TAG,
                 "onConnectionStateChange: device=${g.device.address}, status=$status, newState=$newState"
             )
 
             if (newState == BluetoothProfile.STATE_CONNECTED) {
+                reconnectAttempt = 0 // reset backoff
                 val addr = g.device.address
 
                 // 🔐 binding: kalau belum ada lockedAddress, kunci yang ini
@@ -309,13 +434,15 @@ class HeartRateRepository(private val context: Context) {
                         TAG,
                         "Connected to unexpected device $addr, locked=$lockedAddress → disconnect it"
                     )
-                    try { if (hasBlePermissions()) g.disconnect() } catch (_: SecurityException) {}
+                    try {
+                        if (hasBlePermissions()) g.disconnect()
+                    } catch (_: SecurityException) {
+                    }
                     g.close()
                     if (gatt == g) gatt = null
                     return
                 }
 
-                // Emit 1x aja di sini
                 _state.tryEmit(
                     _state.value.copy(
                         connected = true,
@@ -326,6 +453,19 @@ class HeartRateRepository(private val context: Context) {
                 Log.d(TAG, "Connected to ${g.device.name} @ $addr")
 
                 resetGates()
+
+                // Wajib bond dulu kalau belum
+                val bonded = g.device.bondState == BluetoothDevice.BOND_BONDED
+                if (!bonded) {
+                    Log.d(TAG, "Device not bonded, calling createBond()")
+                    try {
+                        g.device.createBond()
+                    } catch (_: SecurityException) {
+                    }
+                    // discoverServices akan dipanggil setelah BOND_BONDED via bondRcvr
+                    return
+                }
+
                 if (hasBlePermissions()) runCatching {
                     Log.d(TAG, "discoverServices() on $addr")
                     g.discoverServices()
@@ -340,56 +480,80 @@ class HeartRateRepository(private val context: Context) {
         override fun onServicesDiscovered(g: BluetoothGatt, status: Int) {
             Log.d(TAG, "onServicesDiscovered: status=$status, device=${g.device.address}")
             if (!hasBlePermissions()) return
-            val svc = runCatching { g.getService(UUID_HR_SERVICE) }.getOrNull() ?: run {
-                Log.w(TAG, "HR service not found on ${g.device.address}")
-                return
-            }
-            val hrm = runCatching { svc.getCharacteristic(UUID_HR_MEASUREMENT) }.getOrNull() ?: run {
-                Log.w(TAG, "HR measurement char not found on ${g.device.address}")
+
+            if (status != BluetoothGatt.GATT_SUCCESS) {
+                Log.w(
+                    TAG,
+                    "onServicesDiscovered: non-success status=$status → refresh cache & reconnect"
+                )
+                refreshGattCache(g)
+                handleDisconnected(g)
                 return
             }
 
-            runCatching { g.setCharacteristicNotification(hrm, true) }
-                .onFailure {
-                    Log.e(TAG, "setCharacteristicNotification failed: ${it.message}", it)
-                    return
-                }
+            notifEnableAttempts = 0
+            lastHrEventMs = 0L
 
-            runCatching {
-                val ccc = hrm.getDescriptor(UUID_CLIENT_CHAR_CONFIG) ?: run {
-                    Log.w(TAG, "CCC descriptor not found on HR measurement")
-                    return
-                }
-                notificationsReady = false
-                ccc.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-                Log.d(TAG, "writeDescriptor(CCC) to enable notifications")
-                g.writeDescriptor(ccc) // → onDescriptorWrite
-            }.onFailure {
-                Log.e(TAG, "writeDescriptor failed: ${it.message}", it)
+            if (!enableHrNotifications(g)) {
+                Log.w(TAG, "enableHrNotifications() failed → refresh & reconnect")
+                refreshGattCache(g)
+                handleDisconnected(g)
+                return
             }
         }
 
         @SuppressLint("MissingPermission")
-        override fun onDescriptorWrite(g: BluetoothGatt, d: BluetoothGattDescriptor, status: Int) {
+        override fun onDescriptorWrite(
+            g: BluetoothGatt,
+            d: BluetoothGattDescriptor,
+            status: Int
+        ) {
             if (d.uuid == UUID_CLIENT_CHAR_CONFIG) {
                 notificationsReady = (status == BluetoothGatt.GATT_SUCCESS)
                 notifyEnabledAt = System.currentTimeMillis()
+                notifEnableAttempts++
                 Log.d(
                     TAG,
-                    "onDescriptorWrite CCC: status=$status, notificationsReady=$notificationsReady"
+                    "onDescriptorWrite CCC: status=$status, notificationsReady=$notificationsReady, attempts=$notifEnableAttempts"
                 )
+
+                // Watchdog: jika setelah 2.5s belum ada event HR, coba tulis CCCD ulang (max 3x)
+                scope.launch {
+                    delay(2500L)
+                    val age = System.currentTimeMillis() - lastHrEventMs
+                    if (notificationsReady && age > 2000L) {
+                        Log.w(TAG, "No HR events after enabling notif (age=${age}ms)")
+                        if (notifEnableAttempts < 3) {
+                            Log.w(TAG, "Retry enabling CCCD (#$notifEnableAttempts)")
+                            enableHrNotifications(g)
+                        } else {
+                            Log.w(
+                                TAG,
+                                "CCCD still dead → refresh cache & reconnect"
+                            )
+                            refreshGattCache(g)
+                            handleDisconnected(g)
+                        }
+                    }
+                }
+
                 restartStaleWatchdog()
             }
         }
 
         @SuppressLint("MissingPermission")
-        override fun onCharacteristicChanged(g: BluetoothGatt, ch: BluetoothGattCharacteristic) {
+        override fun onCharacteristicChanged(
+            g: BluetoothGatt,
+            ch: BluetoothGattCharacteristic
+        ) {
             if (ch.uuid != UUID_HR_MEASUREMENT || !notificationsReady) return
 
             val now = System.currentTimeMillis()
+            lastHrEventMs = now
 
             // hitung jarak waktu antar paket
-            val dtPacket = if (lastPacketMs == 0L) Long.MAX_VALUE else (now - lastPacketMs)
+            val dtPacket =
+                if (lastPacketMs == 0L) Long.MAX_VALUE else (now - lastPacketMs)
             lastPacketMs = now
 
             val p = parseHrMeasurement(ch.value)      // bpm, isWorn, contactSupported, rrCount
@@ -416,29 +580,16 @@ class HeartRateRepository(private val context: Context) {
             }
 
             // 2b) Kalau sudah "notWornStable" dan TIDAK ada contact flag (Garmin),
-            //     kita kunci di 0 bpm dan TIDAK akan keluar dari lock
-            //     kecuali ada beberapa paket CEPAT + ada RR (rrCount > 0).
+//     sederhanakan: kalau ada bpmRaw > 0, anggap dipakai lagi.
             if (notWornStable && !contactSupported) {
-                val hasRR = rrCount > 0
-                if (bpmRaw > 0 && hasRR && dtPacket <= REWEAR_MAX_INTERVAL_MS) {
-                    // kandidat dipakai lagi
-                    reWearConsec++
-                    Log.d(TAG, "  reWear candidate: reWearConsec=$reWearConsec")
-                    if (reWearConsec < REWEAR_CONSEC_REQUIRED) {
-                        restartStaleWatchdog()
-                        return
-                    } else {
-                        // cukup bukti: jam benar-benar dipakai lagi
-                        Log.d(TAG, "  reWear CONFIRMED: unlock notWornStable")
-                        notWornStable = false
-                        hrFiltered = null
-                        reWearConsec = 0
-                        // lanjut ke heuristik di bawah sebagai "dipakai lagi"
-                    }
-                } else {
-                    // paket lambat ATAU tidak ada RR → tetap anggap tidak dipakai, abaikan saja
-                    Log.d(TAG, "  still not worn (no RR / slow packet)")
+                if (bpmRaw > 0) {
+                    Log.d(TAG, "  reWear SIMPLE: bpmRaw>0 while notWornStable → unlock")
+                    notWornStable = false
+                    hrFiltered = null
                     reWearConsec = 0
+                    // lanjut ke heuristik biasa di bawah
+                } else {
+                    Log.d(TAG, "  still not worn (bpmRaw<=0)")
                     restartStaleWatchdog()
                     return
                 }
@@ -523,7 +674,10 @@ class HeartRateRepository(private val context: Context) {
         // bersihkan GATT
         try {
             if (hasBlePermissions()) {
-                try { g.disconnect() } catch (_: SecurityException) {}
+                try {
+                    g.disconnect()
+                } catch (_: SecurityException) {
+                }
             }
             g.close()
         } catch (e: Exception) {
@@ -535,56 +689,93 @@ class HeartRateRepository(private val context: Context) {
 
         // kalau bukan stop() manual → auto scan lagi (tetap pakai lockedAddress yang sama)
         if (!userStopped) {
-            Log.d(TAG, "handleDisconnected: schedule auto-reconnect in ${RECONNECT_DELAY_MS}ms")
-            scanJob?.cancel()
-            scanJob = scope.launch {
-                delay(RECONNECT_DELAY_MS)
-                safeStartScan()
-            }
+            scheduleReconnectBackoff()
         } else {
             Log.d(TAG, "handleDisconnected: not auto-reconnecting (userStopped=true)")
+            reconnectAttempt = 0
+        }
+    }
+
+    private fun scheduleReconnectBackoff() {
+        // exponential backoff: 1.5s, 3s, 6s, 12s, 20s (max)
+        val delayMs = (1500L * (1 shl reconnectAttempt)).coerceAtMost(20_000L)
+        reconnectAttempt = (reconnectAttempt + 1).coerceAtMost(5)
+        Log.d(TAG, "schedule reconnect in ${delayMs}ms (attempt=$reconnectAttempt)")
+        scanJob?.cancel()
+        scanJob = scope.launch {
+            delay(delayMs)
+            safeStartScan()   // sudah @RequiresPermission di definisinya
         }
     }
 
     /** ===== Variance helpers ===== */
     private fun pushSample(now: Long, bpm: Int, rrCount: Int) {
-        samples.addLast(Sample(now, bpm, rrCount))
-        pruneOld(now)
+        synchronized(samplesLock) {
+            samples.addLast(Sample(now, bpm, rrCount))
+            pruneOldLocked(now)
+        }
     }
 
-    private fun pruneOld(now: Long) {
-        while (samples.isNotEmpty() && now - samples.first().t > VAR_WINDOW_MS) {
-            samples.removeFirst()
+    private fun pruneOldLocked(now: Long) {
+        while (samples.isNotEmpty()) {
+            val first = samples.firstOrNull() ?: break
+            if (now - first.t > VAR_WINDOW_MS) {
+                samples.removeFirst()
+            } else {
+                break
+            }
         }
     }
 
     private fun isLowVariance(now: Long): Boolean {
-        pruneOld(now)
-        if (samples.size < 3) return false
-        var lo = Int.MAX_VALUE
-        var hi = Int.MIN_VALUE
-        samples.forEach { s ->
-            lo = min(lo, s.bpm)
-            hi = max(hi, s.bpm)
+        synchronized(samplesLock) {
+            pruneOldLocked(now)
+            if (samples.size < 3) return false
+
+            var lo = Int.MAX_VALUE
+            var hi = Int.MIN_VALUE
+            samples.forEach { s ->
+                lo = min(lo, s.bpm)
+                hi = max(hi, s.bpm)
+            }
+            return (hi - lo) < VAR_MIN_SPREAD
         }
-        return (hi - lo) < VAR_MIN_SPREAD
     }
 
     private fun isRrAbsent(now: Long): Boolean {
-        pruneOld(now)
-        if (samples.isEmpty()) return true
-        var anyRr = false
-        samples.forEach { s -> if (s.rrCount > 0) anyRr = true }
-        return !anyRr
+        synchronized(samplesLock) {
+            pruneOldLocked(now)
+            if (samples.isEmpty()) return true
+            var anyRr = false
+            samples.forEach { s ->
+                if (s.rrCount > 0) anyRr = true
+            }
+            return !anyRr
+        }
     }
 
     /** ===== Emission & smoothing & watchdog ===== */
 
     private fun emitIfChanged(bpm: Int, worn: Boolean, ts: Long) {
-        if (bpm == lastEmittedBpm && worn == lastEmittedWorn) return
-        Log.d(TAG, "emitIfChanged: bpm=$bpm, worn=$worn, ts=$ts")
+        val now = System.currentTimeMillis()
+        val same = (bpm == lastEmittedBpm && worn == lastEmittedWorn)
+        val dt = now - lastEmitMs
+        val recently = dt in 0..FORCE_EMIT_EVERY_MS
+
+        if (same && recently) {
+            Log.d(
+                TAG,
+                "emitIfChanged: SKIP (same bpm=$bpm worn=$worn, dt=${dt}ms)"
+            )
+            return
+        }
+
+        // update cache
         lastEmittedBpm = bpm
         lastEmittedWorn = worn
+        lastEmitMs = now
+
+        Log.d(TAG, "emitIfChanged: EMIT bpm=$bpm, worn=$worn, ts=$ts")
         _state.tryEmit(
             _state.value.copy(
                 bpm = bpm,
@@ -617,7 +808,8 @@ class HeartRateRepository(private val context: Context) {
 
         // smoothing normal untuk data valid
         val prev = hrFiltered ?: bpm.toDouble()
-        val dtSec = ((ts - lastUpdateMs).coerceAtLeast(1L)).toDouble() / 1000.0
+        val dtMs = (ts - lastUpdateMs).coerceAtLeast(1L)
+        val dtSec = dtMs.toDouble() / 1000.0
         lastUpdateMs = ts
 
         val alphaBase = (dtSec / (TAU_SMOOTH_SEC + dtSec)).coerceIn(0.0, 1.0)
@@ -629,7 +821,8 @@ class HeartRateRepository(private val context: Context) {
         }
 
         val diff = kotlin.math.abs(limitedRaw - prev)
-        val alpha = if (limitedRaw >= prev) 0.87 else if (diff > 10.0) max(alphaBase, 0.6) else alphaBase
+        val alpha =
+            if (limitedRaw >= prev) 0.87 else if (diff > 10.0) max(alphaBase, 0.6) else alphaBase
         val filtered = prev + alpha * (limitedRaw - prev)
         hrFiltered = filtered
 
@@ -680,6 +873,50 @@ class HeartRateRepository(private val context: Context) {
         }
     }
 
+    /** ===== GATT helpers ===== */
+
+    private fun refreshGattCache(g: BluetoothGatt): Boolean {
+        return try {
+            val m = g.javaClass.getMethod("refresh")
+            m.isAccessible = true
+            (m.invoke(g) as Boolean).also {
+                Log.d(TAG, "refreshGattCache() -> $it")
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "refreshGattCache failed: ${t.message}")
+            false
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun enableHrNotifications(g: BluetoothGatt): Boolean {
+        val svc = g.getService(UUID_HR_SERVICE) ?: run {
+            Log.w(TAG, "HR service not found on ${g.device.address}")
+            return false
+        }
+        val hrm = svc.getCharacteristic(UUID_HR_MEASUREMENT) ?: run {
+            Log.w(TAG, "HR measurement char not found on ${g.device.address}")
+            return false
+        }
+
+        if (!g.setCharacteristicNotification(hrm, true)) {
+            Log.e(TAG, "setCharacteristicNotification() returned false")
+            return false
+        }
+
+        val ccc = hrm.getDescriptor(UUID_CLIENT_CHAR_CONFIG) ?: run {
+            Log.w(TAG, "CCC descriptor not found on HR measurement")
+            return false
+        }
+        notificationsReady = false
+        ccc.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+        Log.d(
+            TAG,
+            "writeDescriptor(CCC) to enable notifications (attempt=${notifEnableAttempts + 1})"
+        )
+        return g.writeDescriptor(ccc)
+    }
+
     /** ===== Parser dengan RR count ===== */
     private data class HrParsed(
         val bpm: Int,
@@ -699,7 +936,8 @@ class HeartRateRepository(private val context: Context) {
 
         var offset = 1
         val hr = if (formatUInt16) {
-            val v = (data[offset].toInt() and 0xFF) or ((data[offset + 1].toInt() and 0xFF) shl 8)
+            val v =
+                (data[offset].toInt() and 0xFF) or ((data[offset + 1].toInt() and 0xFF) shl 8)
             offset += 2; v
         } else {
             val v = data[offset].toInt() and 0xFF

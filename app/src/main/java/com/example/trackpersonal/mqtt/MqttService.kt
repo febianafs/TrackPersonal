@@ -378,7 +378,7 @@ class MqttService : Service() {
     private fun buildNotif(): Notification {
         val nmText = composeNotifText()
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_logo_kodamjaya)
+            .setSmallIcon(R.drawable.ic_logo_koopsus)
             .setContentTitle("Radio Tracking")
             .setContentText(nmText)
             .setStyle(NotificationCompat.BigTextStyle().bigText(nmText))

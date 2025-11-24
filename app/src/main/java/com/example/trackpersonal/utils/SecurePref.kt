@@ -56,11 +56,14 @@ class SecurePref(context: Context) {
         private const val KEY_HEART_BPM = "heart_bpm"
         private const val KEY_HEART_TS  = "heart_ts"
 
-        // +++ tambahkan ini untuk lock 1 poc = 1 garmin
+        // Lock 1 poc = 1 Garmin
         private const val KEY_HR_DEVICE_ADDR = "hr_device_addr"
 
         // MQTT Interval (per-user) -> simpan per userKey
         private const val KEY_MQTT_INTERVAL_PREFIX = "mqtt_interval_s_"
+
+        // SOS status
+        private const val KEY_SOS_ACTIVE = "sos_active"
     }
 
     private val sharedPref: SharedPreferences by lazy {
@@ -81,11 +84,13 @@ class SecurePref(context: Context) {
     private fun putString(key: String, value: String?) {
         sharedPref.edit().putString(key, value).apply()
     }
+
     private fun getString(key: String): String? = sharedPref.getString(key, null)
 
     private fun putLong(key: String, value: Long?) {
         sharedPref.edit().putLong(key, value ?: -1L).apply()
     }
+
     private fun getLongOrNull(key: String): Long? {
         val v = sharedPref.getLong(key, -1L)
         return if (v == -1L) null else v
@@ -98,6 +103,7 @@ class SecurePref(context: Context) {
             .putString(KEY_NAME, name)
             .apply()
     }
+
     fun getToken(): String? = getString(KEY_TOKEN)
     fun getName(): String? = getString(KEY_NAME)
 
@@ -115,6 +121,7 @@ class SecurePref(context: Context) {
         putLong(KEY_CLIENT_ID, clientId)
         putLong(KEY_PROFILE_ID, profileId)
     }
+
     fun getUserId(): Long? = getLongOrNull(KEY_USER_ID)
     fun getClientId(): Long? = getLongOrNull(KEY_CLIENT_ID)
     fun getProfileId(): Long? = getLongOrNull(KEY_PROFILE_ID)
@@ -128,6 +135,7 @@ class SecurePref(context: Context) {
         putString(KEY_ROLE, role)
         putString(KEY_AVATAR_URL, avatarUrl)
     }
+
     fun getFullName(): String? = getString(KEY_FULL_NAME)
     fun getUsername(): String? = getString(KEY_USERNAME)
     fun getRole(): String? = getString(KEY_ROLE)
@@ -150,6 +158,7 @@ class SecurePref(context: Context) {
         putString(KEY_RANK, rank)
         putString(KEY_REGU, regu)
     }
+
     fun getSatuan(): String? = getString(KEY_SATUAN)
     fun getBatalyon(): String? = getString(KEY_BATALYON)
     fun getRank(): String? = getString(KEY_RANK)
@@ -163,6 +172,7 @@ class SecurePref(context: Context) {
         putString(KEY_ABOUT_DEV, data?.dev)
         putString(KEY_ABOUT_VIDEO, data?.videoUrl)
     }
+
     fun getAboutContent() = getString(KEY_ABOUT_CONTENT)
     fun getAboutImageUrl() = getString(KEY_ABOUT_IMAGE)
     fun getAboutVersion() = getString(KEY_ABOUT_VERSION)
@@ -179,6 +189,7 @@ class SecurePref(context: Context) {
         putString(KEY_SETTING_LOGO, logo)
         putString(KEY_SETTING_DESC, desc)
     }
+
     fun getSettingTitle(): String? = getString(KEY_SETTING_TITLE)
     fun getSettingLogo(): String? = getString(KEY_SETTING_LOGO)
     fun getSettingDesc(): String? = getString(KEY_SETTING_DESC)
@@ -190,15 +201,18 @@ class SecurePref(context: Context) {
             .putLong(KEY_HEART_TS, tsSec ?: 0L)
             .apply()
     }
+
     fun getHeartRateBpm(): Int? =
         if (sharedPref.contains(KEY_HEART_BPM)) sharedPref.getInt(KEY_HEART_BPM, 0) else null
+
     fun getHeartRateTs(): Long? =
         if (sharedPref.contains(KEY_HEART_TS)) sharedPref.getLong(KEY_HEART_TS, 0L) else null
 
-    // +++ TAMBAHKAN INI untuk lock hanya 1 garmin yang pertama yg connect
+    // Lock hanya 1 Garmin (alamat pertama yang connect)
     fun saveHrDeviceAddress(addr: String?) {
         sharedPref.edit().putString(KEY_HR_DEVICE_ADDR, addr).apply()
     }
+
     fun getHrDeviceAddress(): String? = getString(KEY_HR_DEVICE_ADDR)
 
     // ---------- MQTT INTERVAL (per-user) ----------
@@ -210,6 +224,17 @@ class SecurePref(context: Context) {
 
     fun getMqttIntervalSecondsForUser(userKey: String, defaultSeconds: Int = 10): Int {
         return sharedPref.getInt(keyIntervalFor(userKey), defaultSeconds)
+    }
+
+    // ---------- SOS STATE ----------
+    fun saveSosActive(active: Boolean) {
+        sharedPref.edit()
+            .putBoolean(KEY_SOS_ACTIVE, active)
+            .apply()
+    }
+
+    fun isSosActive(): Boolean {
+        return sharedPref.getBoolean(KEY_SOS_ACTIVE, false)
     }
 
     /**
@@ -227,6 +252,7 @@ class SecurePref(context: Context) {
     fun registerOnChangeListener(l: SharedPreferences.OnSharedPreferenceChangeListener) {
         sharedPref.registerOnSharedPreferenceChangeListener(l)
     }
+
     fun unregisterOnChangeListener(l: SharedPreferences.OnSharedPreferenceChangeListener) {
         sharedPref.unregisterOnSharedPreferenceChangeListener(l)
     }

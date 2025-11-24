@@ -68,39 +68,39 @@
                         app:layout_constraintBottom_toBottomOf="parent"
                         app:layout_constraintStart_toStartOf="parent"
                         app:layout_constraintEnd_toEndOf="parent"
-                        app:layout_constraintDimensionRatio="1:1" />
+                        app:layout_constraintDimensionRatio="3:4" />
                 </androidx.constraintlayout.widget.ConstraintLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Switch Camera -->
-            <LinearLayout
-                android:id="@+id/switchRow"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="end|center_vertical"
-                android:paddingTop="12dp">
+<!--            &lt;!&ndash; Switch Camera &ndash;&gt;-->
+<!--            <LinearLayout-->
+<!--                android:id="@+id/switchRow"-->
+<!--                android:layout_width="match_parent"-->
+<!--                android:layout_height="wrap_content"-->
+<!--                android:orientation="horizontal"-->
+<!--                android:gravity="end|center_vertical"-->
+<!--                android:paddingTop="12dp">-->
 
-                <TextView
-                    android:id="@+id/tvSwitchLabel"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Switch Camera"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    style="@style/TextColor"/>
+<!--                <TextView-->
+<!--                    android:id="@+id/tvSwitchLabel"-->
+<!--                    android:layout_width="0dp"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:layout_weight="1"-->
+<!--                    android:text="Switch Camera"-->
+<!--                    android:textSize="14sp"-->
+<!--                    android:textStyle="bold"-->
+<!--                    style="@style/TextColor"/>-->
 
-                <androidx.appcompat.widget.SwitchCompat
-                    android:id="@+id/switchCamera"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp"
-                    android:scaleX="0.85"
-                    android:scaleY="0.85"
-                    android:thumb="@drawable/thumb"
-                    app:track="@drawable/track" />
-            </LinearLayout>
+<!--                <androidx.appcompat.widget.SwitchCompat-->
+<!--                    android:id="@+id/switchCamera"-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:layout_marginStart="12dp"-->
+<!--                    android:scaleX="0.85"-->
+<!--                    android:scaleY="0.85"-->
+<!--                    android:thumb="@drawable/thumb"-->
+<!--                    app:track="@drawable/track" />-->
+<!--            </LinearLayout>-->
 
             <!-- Switch Streaming RTMP -->
             <LinearLayout

@@ -79,7 +79,7 @@ class MqttHelper(
         .identifier("android-client-$serialNumber")
         .useMqttVersion3()
         .serverHost("147.139.161.159")
-        .serverPort(9001) // WebSocket
+        .serverPort(9002) // WebSocket
         .webSocketConfig(MqttWebSocketConfig.builder().build())
         .automaticReconnectWithDefaultConfig()
         .buildAsync()
@@ -101,7 +101,7 @@ class MqttHelper(
 
         val connectMsg = Mqtt3Connect.builder()
             .keepAlive(20)
-            .simpleAuth().username("kodam").password("kodam2025".toByteArray()).applySimpleAuth()
+            .simpleAuth().username("koopsus").password("koopsus2025".toByteArray()).applySimpleAuth()
             .cleanSession(true)
             .build()
 
@@ -190,7 +190,7 @@ class MqttHelper(
         timestamp: Long
     ) {
         // 🔁 GANTI TOPIK DI SINI
-        val topic = "kdm/radio/data"
+        val topic = "kps/radio/data"
         val payload = JSONObject().apply {
             put("timestamp", timestamp)
             put("serial_number", serialNumber)
@@ -230,7 +230,7 @@ class MqttHelper(
         timestamp: Long
     ) {
         // 🔁 GANTI TOPIK DI SINI
-        val topic = "kdm/radio/sos"
+        val topic = "kps/radio/sos"
         val payload = JSONObject().apply {
             put("timestamp", timestamp)
             put("serial_number", serialNumber)

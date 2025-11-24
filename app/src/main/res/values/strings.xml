@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Kodam Personal Tracking</string>
+    <string name="app_name">Koopssus Personal Tracking</string>
 
     <!-- contentDescription -->
     <string name="cd_logo">Logo</string>
@@ -11,7 +11,7 @@
 
     <!-- labels / placeholders -->
     <string name="label_data_personel">Data Personel</string>
-    <string name="title_placeholder">KODAM JAYA</string>
+    <string name="title_placeholder">KOOPSSUS</string>
     <string name="label_nrp_placeholder">NRP : -</string>
     <string name="label_name_placeholder">Name : -</string>
     <string name="label_rank_placeholder">Rank : -</string>

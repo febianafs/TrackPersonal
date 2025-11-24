@@ -59,8 +59,9 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var securePref: SecurePref
-    //buat nyimpen alamat garmin terakhir yang nyangkut di poc
+    // buat nyimpen alamat garmin terakhir yang nyangkut di poc
     private var lastHrDeviceShown: String? = null
+    private var lastHrConnected: Boolean = false
 
     private val viewModel: MainViewModel by viewModels {
         object : ViewModelProvider.Factory {
@@ -84,7 +85,7 @@ class MainActivity : AppCompatActivity() {
         ViewModelProvider.AndroidViewModelFactory.getInstance(application)
     }
 
-    //heart rate
+    // heart rate
     private val heartRateVM: HeartRateViewModel by viewModels {
         ViewModelProvider.AndroidViewModelFactory.getInstance(application)
     }
@@ -127,11 +128,16 @@ class MainActivity : AppCompatActivity() {
         val grantedConn = result[Manifest.permission.BLUETOOTH_CONNECT] == true
         if (grantedScan && grantedConn) heartRateVM.start()
         else {
-            //Satu-satunya tempat heartRateVM.stop() dipanggil adalah di BLE permission gagal
+            // Satu-satunya tempat heartRateVM.stop() dipanggil adalah di BLE permission gagal
             heartRateVM.stop()
             binding.tvHeartPersonel.text = "0 bpm"
-            binding.tvHeartPersonel.setTextColor(ContextCompat.getColor(this, android.R.color.darker_gray))
-            // ✅ set HR 0 supaya service kirim 0,0 sampai sensor aktif lagi
+            binding.tvHeartPersonel.setTextColor(
+                ContextCompat.getColor(
+                    this,
+                    android.R.color.darker_gray
+                )
+            )
+            // set HR 0 supaya service kirim 0,0 sampai sensor aktif lagi
             securePref.saveHeartRate(0, System.currentTimeMillis() / 1000L)
         }
     }
@@ -141,7 +147,11 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         if (!granted) {
-            Toast.makeText(this, "Izin notifikasi ditolak — tracking tetap dicoba jalan", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                this,
+                "Izin notifikasi ditolak — tracking tetap dicoba jalan",
+                Toast.LENGTH_SHORT
+            ).show()
         }
         MqttService.start(this) // tetap coba start
     }
@@ -168,7 +178,9 @@ class MainActivity : AppCompatActivity() {
                     val i = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
                     i.data = Uri.parse("package:$pkg")
                     startActivity(i)
-                } catch (_: Exception) { /* no-op */ }
+                } catch (_: Exception) {
+                    /* no-op */
+                }
             }
         }
     }
@@ -187,7 +199,9 @@ class MainActivity : AppCompatActivity() {
                     try {
                         val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
                         startActivity(intent)
-                    } catch (_: Exception) { /* no-op */ }
+                    } catch (_: Exception) {
+                        /* no-op */
+                    }
                 }
             }
         }
@@ -215,8 +229,8 @@ class MainActivity : AppCompatActivity() {
                     // Logo dari login setting
                     Glide.with(this@MainActivity)
                         .load(state.logoUrl)
-                        .placeholder(R.drawable.ic_logo_kodamjaya)
-                        .error(R.drawable.ic_logo_kodamjaya)
+                        .placeholder(R.drawable.ic_logo_koopsus)
+                        .error(R.drawable.ic_logo_koopsus)
                         .into(binding.imgLogo)
 
                     // Avatar & biodata personel
@@ -236,7 +250,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        //tampilkan indikator interval saat awal masuk
+        // tampilkan indikator interval saat awal masuk
         refreshIntervalIndicator()
 
         initMap()
@@ -246,6 +260,9 @@ class MainActivity : AppCompatActivity() {
         batteryVM.start()
         observeBattery()
         observeHeartRate()
+
+        // Sinkronkan status SOS dari SecurePref (tanpa kirim MQTT lagi)
+        syncSosFromPref()
     }
 
     override fun onStart() {
@@ -261,14 +278,20 @@ class MainActivity : AppCompatActivity() {
 
         // Baru start ForegroundService (kirim data setiap 10 detik sekali)
         ensureStartMqttService()
+
+        // Pastikan setiap kali balik ke Main, UI SOS sama dengan yang tersimpan
+        syncSosFromPref()
     }
 
     override fun onResume() {
         super.onResume()
         binding.mapView.onResume()
 
-        //tampilkan indikator interval saat awal masuk
+        // tampilkan indikator interval saat awal masuk
         refreshIntervalIndicator()
+
+        // Jaga-jaga lagi sync SOS
+        syncSosFromPref()
     }
 
     override fun onPause() {
@@ -298,7 +321,9 @@ class MainActivity : AppCompatActivity() {
                     startActivity(Intent(this, SettingActivity::class.java))
                     true
                 }
-                R.id.action_logout -> { performLogout(); true }
+                R.id.action_logout -> {
+                    performLogout(); true
+                }
                 else -> false
             }
         }
@@ -336,8 +361,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun hasLocationPermission(): Boolean {
-        val fine = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-        val coarse = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val fine = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        val coarse = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
         return fine || coarse
     }
 
@@ -373,7 +404,7 @@ class MainActivity : AppCompatActivity() {
         map.setTileSource(TileSourceFactory.MAPNIK)
         map.setMultiTouchControls(true)
 
-        // 👇 Matikan zoom control bawaan OSM (biar nggak dobel dengan FAB di XML)
+        // Matikan zoom control bawaan OSM (biar nggak dobel dengan FAB di XML)
         map.setBuiltInZoomControls(false)
         map.zoomController.setVisibility(CustomZoomButtonsController.Visibility.NEVER)
 
@@ -494,11 +525,18 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+
     private fun renderBattery(state: BatteryState) {
         binding.tvBatteryPersonel.text = "${state.levelPercent} %"
         val color = when {
-            state.levelPercent >= 60 -> ContextCompat.getColor(this, android.R.color.holo_green_light)
-            state.levelPercent >= 20 -> ContextCompat.getColor(this, android.R.color.holo_orange_light)
+            state.levelPercent >= 60 -> ContextCompat.getColor(
+                this,
+                android.R.color.holo_green_light
+            )
+            state.levelPercent >= 20 -> ContextCompat.getColor(
+                this,
+                android.R.color.holo_orange_light
+            )
             else -> ContextCompat.getColor(this, android.R.color.holo_red_light)
         }
         binding.imgBattery.imageTintList = ColorStateList.valueOf(color)
@@ -506,13 +544,21 @@ class MainActivity : AppCompatActivity() {
 
     private fun ensureBlePermissionsAndStartHR() {
         if (Build.VERSION.SDK_INT >= 31) {
-            val needScan = ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED
-            val needConn = ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED
+            val needScan = ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.BLUETOOTH_SCAN
+            ) != PackageManager.PERMISSION_GRANTED
+            val needConn = ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.BLUETOOTH_CONNECT
+            ) != PackageManager.PERMISSION_GRANTED
             if (needScan || needConn) {
-                blePermLauncher.launch(arrayOf(
-                    Manifest.permission.BLUETOOTH_SCAN,
-                    Manifest.permission.BLUETOOTH_CONNECT
-                ))
+                blePermLauncher.launch(
+                    arrayOf(
+                        Manifest.permission.BLUETOOTH_SCAN,
+                        Manifest.permission.BLUETOOTH_CONNECT
+                    )
+                )
             } else heartRateVM.start()
         } else heartRateVM.start()
     }
@@ -524,31 +570,51 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+
     private fun renderHeart(s: HeartRateState) {
-        // kalau putus (connected=false) → reset flag notif
-        if (!s.connected) {
-            lastHrDeviceShown = null
+        // DEBUG: lihat apa yang diterima UI
+        android.util.Log.d("HeartUI", "renderHeart: bpm=${s.bpm}, worn=${s.isWorn}, connected=${s.connected}")
+
+        // Detect disconnect edge → show "disconnected" toast ONCE
+        if (!s.connected && lastHrConnected) {
+            Toast.makeText(
+                this,
+                "Heart rate device disconnected",
+                Toast.LENGTH_SHORT
+            ).show()
         }
 
+        // Always remember latest connection state
+        lastHrConnected = s.connected
+
+        // Update HR text & color
         val text = "${s.bpm} bpm"
         binding.tvHeartPersonel.text = text
         val color = if (s.isWorn) android.R.color.white else android.R.color.darker_gray
         binding.tvHeartPersonel.setTextColor(ContextCompat.getColor(this, color))
 
+        // Build key from name + address to detect new device
         val currentDeviceKey = listOfNotNull(s.deviceName, s.deviceAddress).joinToString(" @ ")
 
-        if (!currentDeviceKey.isNullOrBlank() && currentDeviceKey != lastHrDeviceShown) {
+        if (s.connected && currentDeviceKey.isNotBlank() && currentDeviceKey != lastHrDeviceShown) {
             lastHrDeviceShown = currentDeviceKey
+
             val label = if (s.deviceName != null && s.deviceAddress != null) {
-                "HR terhubung ke ${s.deviceName} (${s.deviceAddress})"
+                "Heart rate connected to ${s.deviceName} (${s.deviceAddress})"
             } else if (s.deviceAddress != null) {
-                "HR terhubung ke ${s.deviceAddress}"
+                "Heart rate connected to ${s.deviceAddress}"
             } else {
-                "HR device terhubung"
+                "Heart rate device connected"
             }
-            android.widget.Toast.makeText(this, label, android.widget.Toast.LENGTH_LONG).show()
+
+            Toast.makeText(this, label, Toast.LENGTH_LONG).show()
         }
 
+        if (!s.connected) {
+            lastHrDeviceShown = null
+        }
+
+        // Save HR so MQTT service can read & send it
         securePref.saveHeartRate(s.bpm, System.currentTimeMillis() / 1000L)
     }
 
@@ -564,7 +630,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun toggleSosMode() {
-        if (sosActive) stopSosBlink() else startSosBlink()
+        if (sosActive) {
+            stopSosBlink()
+        } else {
+            startSosBlink()
+        }
+        // simpan state ke SecurePref supaya BodyCamActivity bisa ikut
+        securePref.saveSosActive(sosActive)
+        // kirim ke MQTT
         MqttService.sendSos(this, sosActive)
     }
 
@@ -574,8 +647,9 @@ class MainActivity : AppCompatActivity() {
         lastFix?.let { map.controller.animateTo(it) }
 
         if (toolbarBaseColor == null) {
-            toolbarBaseColor = (binding.toolbar.background as? android.graphics.drawable.ColorDrawable)?.color
-                ?: ContextCompat.getColor(this, R.color.black)
+            toolbarBaseColor =
+                (binding.toolbar.background as? android.graphics.drawable.ColorDrawable)?.color
+                    ?: ContextCompat.getColor(this, R.color.black)
         }
         val from = toolbarBaseColor!!
         val to = Color.parseColor("#FF2E2E")
@@ -625,10 +699,23 @@ class MainActivity : AppCompatActivity() {
         map.invalidate()
     }
 
+    // Sync SOS dari SecurePref → hanya update UI (tanpa kirim MQTT)
+    private fun syncSosFromPref() {
+        val saved = securePref.isSosActive()
+        if (saved && !sosActive) {
+            startSosBlink()
+        } else if (!saved && sosActive) {
+            stopSosBlink()
+        }
+    }
+
     // ===== Start ForegroundService dengan izin notif (Android 13+) =====
     private fun ensureStartMqttService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val granted = ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+            val granted = ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
             if (!granted) {
                 notifPermLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 return
@@ -637,9 +724,9 @@ class MainActivity : AppCompatActivity() {
         MqttService.start(this)
     }
 
-    // + ADD: helper untuk update label "Interval: ..."
+    // helper untuk update label "Interval: ..."
     private fun refreshIntervalIndicator() {
-        val userKey = securePref.getCurrentUserKey() // dari Step 1
+        val userKey = securePref.getCurrentUserKey()
         val seconds = securePref.getMqttIntervalSecondsForUser(userKey, defaultSeconds = 10)
         binding.tvInterval.text = "Interval: ${MqttInterval.labelFor(seconds)}"
     }
@@ -658,19 +745,34 @@ class MainActivity : AppCompatActivity() {
             val repo = AuthRepository(securePref)
             when (val res = repo.logout()) {
                 is Resource.Success -> {
-                    Toast.makeText(this@MainActivity, res.data?.message ?: "Logout berhasil", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        this@MainActivity,
+                        res.data?.message ?: "Logout berhasil",
+                        Toast.LENGTH_SHORT
+                    ).show()
                     proceedLocalSignOut()
                 }
+
                 is Resource.Error -> {
                     val m = res.message?.lowercase().orEmpty()
                     if (m.contains("401") || m.contains("unauthorized") || m.contains("expired")) {
-                        Toast.makeText(this@MainActivity, "Sesi berakhir, keluar akun.", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            this@MainActivity,
+                            "Sesi berakhir, keluar akun.",
+                            Toast.LENGTH_SHORT
+                        ).show()
                         proceedLocalSignOut()
                     } else {
-                        Toast.makeText(this@MainActivity, res.message ?: "Gagal logout", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            this@MainActivity,
+                            res.message ?: "Gagal logout",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
                 }
+
                 else -> Unit
             }
         }
-    }}
+    }
+}
